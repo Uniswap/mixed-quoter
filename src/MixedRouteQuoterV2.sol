@@ -85,4 +85,24 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
             }
         }
     }
+
+    /// @dev Parses a revert reason that should contain the numeric quote
+    function parseRevertReason(bytes memory reason)
+    private
+    pure
+    returns (
+        uint256 amount,
+        uint160 sqrtPriceX96After,
+        int24 tickAfter
+    )
+    {
+        if (reason.length != 0x60) {
+            if (reason.length < 0x44) revert('Unexpected error');
+            assembly {
+                reason := add(reason, 0x04)
+            }
+            revert(abi.decode(reason, (string)));
+        }
+        return abi.decode(reason, (uint256, uint160, int24));
+    }
 }
