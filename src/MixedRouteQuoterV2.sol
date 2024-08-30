@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.7.0;
+pragma solidity >=0.5.0 <=0.8.20;
 
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {CallbackValidation} from "lib/v3-periphery/contracts/libraries/CallbackValidation.sol";
 import {Path} from "lib/v3-periphery/contracts/libraries/Path.sol";
 import {PoolAddress} from "lib/v3-periphery/contracts/libraries/PoolAddress.sol";
+
+import {UniswapV2Library} from './libraries/UniswapV2Library.sol';
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
     using Path for bytes;
@@ -33,6 +35,16 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
         uint24 fee
     ) private view returns (IUniswapV3Pool) {
         return IUniswapV3Pool(PoolAddress.computeAddress(uniswapV3Poolfactory, PoolAddress.getPoolKey(tokenA, tokenB, fee)));
+    }
+
+    /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
+    function getPairAmountOut(
+        uint256 amountIn,
+        address tokenIn,
+        address tokenOut
+    ) private view returns (uint256) {
+        (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniswapV2Poolfactory, tokenIn, tokenOut);
+        return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
     function uniswapV3SwapCallback(
