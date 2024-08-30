@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.7.0;
+pragma solidity >=0.5.0 <=0.8.20;
 
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -7,7 +7,7 @@ import {CallbackValidation} from "lib/v3-periphery/contracts/libraries/CallbackV
 import {Path} from "lib/v3-periphery/contracts/libraries/Path.sol";
 import {PoolAddress} from "lib/v3-periphery/contracts/libraries/PoolAddress.sol";
 
-import 'lib/v2-periphery/contracts/libraries/UniswapV2Library.sol';
+import {UniswapV2Library} from './libraries/UniswapV2Library.sol';
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
     using Path for bytes;
