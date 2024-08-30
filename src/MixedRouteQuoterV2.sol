@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.5.0 <=0.8.20;
+pragma abicoder v2;
 
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {SafeCast} from "lib/v3-core/contracts/libraries/SafeCast.sol";
+import {TickMath} from "lib/v3-core/contracts/libraries/TickMath.sol";
 import {CallbackValidation} from "lib/v3-periphery/contracts/libraries/CallbackValidation.sol";
 import {Path} from "lib/v3-periphery/contracts/libraries/Path.sol";
 import {PoolAddress} from "lib/v3-periphery/contracts/libraries/PoolAddress.sol";
 import {PoolTicksCounter} from "lib/v3-periphery/contracts/libraries/PoolTicksCounter.sol";
 
 import {UniswapV2Library} from './libraries/UniswapV2Library.sol';
+import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 
-contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
+contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     using Path for bytes;
+    using SafeCast for uint256;
     using PoolTicksCounter for IUniswapV3Pool;
 
     address public immutable uniswapV4PoolManager;
@@ -130,5 +135,36 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
         initializedTicksCrossed = pool.countInitializedTicksCrossed(tickBefore, tickAfter);
 
         return (amount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate);
+    }
+
+    /// @dev Fetch an exactIn quote for a V3 Pool on chain
+    function quoteExactInputSingleV3(QuoteExactInputSingleV3Params memory params)
+    public
+    override
+    returns (
+        uint256 amountOut,
+        uint160 sqrtPriceX96After,
+        uint32 initializedTicksCrossed,
+        uint256 gasEstimate
+    )
+    {
+        bool zeroForOne = params.tokenIn < params.tokenOut;
+        IUniswapV3Pool pool = getPool(params.tokenIn, params.tokenOut, params.fee);
+
+        uint256 gasBefore = gasleft();
+        try
+        pool.swap(
+            address(this), // address(0) might cause issues with some tokens
+            zeroForOne,
+            params.amountIn.toInt256(),
+            params.sqrtPriceLimitX96 == 0
+                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                : params.sqrtPriceLimitX96,
+            abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
+        )
+        {} catch (bytes memory reason) {
+            gasEstimate = gasBefore - gasleft();
+            return handleV3Revert(reason, pool, gasEstimate);
+        }
     }
 }
