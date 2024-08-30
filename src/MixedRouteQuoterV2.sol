@@ -6,11 +6,13 @@ import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.so
 import {CallbackValidation} from "lib/v3-periphery/contracts/libraries/CallbackValidation.sol";
 import {Path} from "lib/v3-periphery/contracts/libraries/Path.sol";
 import {PoolAddress} from "lib/v3-periphery/contracts/libraries/PoolAddress.sol";
+import {PoolTicksCounter} from "lib/v3-periphery/contracts/libraries/PoolTicksCounter.sol";
 
 import {UniswapV2Library} from './libraries/UniswapV2Library.sol';
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
     using Path for bytes;
+    using PoolTicksCounter for IUniswapV3Pool;
 
     address public immutable uniswapV4PoolManager;
     address public immutable uniswapV3Poolfactory;
@@ -104,5 +106,29 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback {
             revert(abi.decode(reason, (string)));
         }
         return abi.decode(reason, (uint256, uint160, int24));
+    }
+
+    function handleV3Revert(
+        bytes memory reason,
+        IUniswapV3Pool pool,
+        uint256 gasEstimate
+    )
+    private
+    view
+    returns (
+        uint256 amount,
+        uint160 sqrtPriceX96After,
+        uint32 initializedTicksCrossed,
+        uint256
+    )
+    {
+        int24 tickBefore;
+        int24 tickAfter;
+        (, tickBefore, , , , , ) = pool.slot0();
+        (amount, sqrtPriceX96After, tickAfter) = parseRevertReason(reason);
+
+        initializedTicksCrossed = pool.countInitializedTicksCrossed(tickBefore, tickAfter);
+
+        return (amount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate);
     }
 }
