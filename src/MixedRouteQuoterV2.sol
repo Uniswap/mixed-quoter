@@ -5,17 +5,24 @@ pragma abicoder v2;
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {SafeCast} from "lib/v3-core/contracts/libraries/SafeCast.sol";
-import {TickMath} from "lib/v3-core/contracts/libraries/TickMath.sol";
-import {CallbackValidation} from "lib/v3-periphery/contracts/libraries/CallbackValidation.sol";
-import {Path} from "lib/v3-periphery/contracts/libraries/Path.sol";
-import {PoolAddress} from "lib/v3-periphery/contracts/libraries/PoolAddress.sol";
-import {PoolTicksCounter} from "lib/v3-periphery/contracts/libraries/PoolTicksCounter.sol";
+import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
 
-import {UniswapV2Library} from './libraries/UniswapV2Library.sol';
+import {V3Path} from "lib/universal-router/contracts/modules/uniswap/v3/V3Path.sol";
+import {UniswapV2Library} from 'lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol';
+import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
+import {PoolAddress} from "./libraries/PoolAddress.sol";
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
-    using Path for bytes;
+    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
+    uint160 internal constant MIN_SQRT_RATIO = 4295128739;
+
+    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
+    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
+
+    bytes32 internal constant UNISWAP_V3_POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+
+    using V3Path for bytes;
     using SafeCast for uint256;
     using PoolTicksCounter for IUniswapV3Pool;
 
@@ -50,18 +57,18 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         address tokenIn,
         address tokenOut
     ) private view returns (uint256) {
-        (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniswapV2Poolfactory, tokenIn, tokenOut);
+        (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniswapV2Poolfactory, UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
         return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
-        bytes memory path
+        bytes calldata path
     ) external view override {
         // do nothing
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        (address tokenIn, address tokenOut, uint24 fee) = path.decodeFirstPool();
+        (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstPool();
         CallbackValidation.verifyCallback(uniswapV3Poolfactory, tokenIn, tokenOut, fee);
 
         (bool isExactInput, uint256 amountToPay, uint256 amountReceived) =
@@ -158,7 +165,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
             zeroForOne,
             params.amountIn.toInt256(),
             params.sqrtPriceLimitX96 == 0
-                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                ? (zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1)
                 : params.sqrtPriceLimitX96,
             abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
         )
