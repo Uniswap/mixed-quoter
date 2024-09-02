@@ -11,6 +11,7 @@ import {V3Path} from "lib/universal-router/contracts/modules/uniswap/v3/V3Path.s
 import {UniswapV2Library} from 'lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol';
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
+import {PoolAddress} from "./libraries/PoolAddress.sol";
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
@@ -47,25 +48,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         address tokenB,
         uint24 fee
     ) private view returns (IUniswapV3Pool) {
-        return IUniswapV3Pool(computePoolAddress(tokenA, tokenB, fee));
-    }
-
-    function computePoolAddress(address tokenA, address tokenB, uint24 fee) private view returns (address pool) {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        pool = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex'ff',
-                            uniswapV3Poolfactory,
-                            keccak256(abi.encode(tokenA, tokenB, fee)),
-                            UNISWAP_V3_POOL_INIT_CODE_HASH
-                        )
-                    )
-                )
-            )
-        );
+        return IUniswapV3Pool(PoolAddress.computeAddress(uniswapV3Poolfactory, PoolAddress.getPoolKey(tokenA, tokenB, fee)));
     }
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
