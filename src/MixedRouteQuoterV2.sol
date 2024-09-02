@@ -2,6 +2,7 @@
 pragma solidity >=0.5.0 <=0.8.20;
 pragma abicoder v2;
 
+import {IUniswapV2Pair} from 'lib/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {SafeCast} from "lib/v3-core/contracts/libraries/SafeCast.sol";
@@ -57,7 +58,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         address tokenIn,
         address tokenOut
     ) private view returns (uint256) {
-        (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniswapV2Poolfactory, UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
+        (address pair, address token0) = UniswapV2Library.pairAndToken0For(uniswapV2Poolfactory, UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
+        (uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(pair).getReserves();
+        (uint256 reserveIn, uint256 reserveOut) = tokenIn == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
         return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
