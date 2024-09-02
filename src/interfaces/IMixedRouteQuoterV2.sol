@@ -28,11 +28,6 @@ interface IMixedRouteQuoterV2 {
     /// @return initializedTicksCrossed The number of initialized ticks that the swap crossed
     /// @return gasEstimate The estimate of the gas that the swap consumes
     function quoteExactInputSingleV3(QuoteExactInputSingleV3Params memory params)
-    external
-    returns (
-        uint256 amountOut,
-        uint160 sqrtPriceX96After,
-        uint32 initializedTicksCrossed,
-        uint256 gasEstimate
-    );
+        external
+        returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate);
 }
