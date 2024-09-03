@@ -33,7 +33,11 @@ library Path {
     /// @return tickSpacing The tick spacing of the pool
     /// @return hooks The hooks address of the pool
     /// @return tokenOut The second token of the given pool
-    function decodeFirstPool(bytes memory path) internal pure returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) {
+    function decodeFirstPool(bytes memory path)
+        internal
+        pure
+        returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
+    {
         (tokenIn, fee, tickSpacing, hooks, tokenOut) = toV4Pool(path);
     }
 

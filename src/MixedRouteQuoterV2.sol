@@ -266,7 +266,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
         uint256 i = 0;
         while (true) {
-            (, uint24 fee, , ,) = path.decodeFirstPool();
+            (, uint24 fee,,,) = path.decodeFirstPool();
 
             if (fee & Constants.v2FlagBitmask != 0) {
                 (address tokenIn,, address tokenOut) = path.decodeFirstV2Pool();
@@ -288,8 +288,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
                 initializedTicksCrossedList[i] = _initializedTicksCrossed;
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
-            } else { // assume v3 because of lack of flag
-                (address tokenIn, , address tokenOut) = path.decodeFirstV3Pool();
+            } else {
+                // assume v3 because of lack of flag
+                (address tokenIn,, address tokenOut) = path.decodeFirstV3Pool();
 
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
                 = quoteExactInputSingleV3(
