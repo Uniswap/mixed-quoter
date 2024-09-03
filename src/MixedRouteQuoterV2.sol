@@ -29,7 +29,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     // max V3 fee:           000011110100001001000000 (24 bits)
     // mask:       1 << 23 = 100000000000000000000000 = decimal value 8388608
     uint24 private constant v2FlagBitmask = 8388608;
-    // mask:       1 << 23 - 1 = 11111111111111111111111 = decimal value 8388607
+    // mask:       1 << 22 = 10000000000000000000000 = decimal value 4194304
     uint24 private constant v4FlagBitmask = 8388607;
 
     /// @dev min valid reason is 6-words long (192 bytes)
@@ -78,7 +78,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     {
         // do nothing
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstPool();
+        (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
         CallbackValidation.verifyCallback(uniswapV3Poolfactory, tokenIn, tokenOut, fee);
 
         (bool isExactInput, uint256 amountToPay, uint256 amountReceived) = amount0Delta > 0
@@ -283,13 +283,10 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
         uint256 i = 0;
         while (true) {
-            (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstPool();
+            (, uint24 fee, , ,) = path.decodeFirstPool();
 
             if (fee & v2FlagBitmask != 0) {
-                amountIn = quoteExactInputSingleV2(
-                    QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
-                );
-            }
+            } else if (fee & v4FlagBitmask != 0) {}
         }
     }
 }
