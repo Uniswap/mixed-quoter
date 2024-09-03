@@ -28,11 +28,13 @@ library Path {
 
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
-    /// @return tokenA The first token of the given pool
+    /// @return tokenIn The first token of the given pool
     /// @return fee The fee level of the pool
-    /// @return tokenB The second token of the given pool
-    function decodeFirstPool(bytes memory path) internal pure returns (address, uint24, uint24, address, address) {
-        return toV4Pool(path);
+    /// @return tickSpacing The tick spacing of the pool
+    /// @return hooks The hooks address of the pool
+    /// @return tokenOut The second token of the given pool
+    function decodeFirstPool(bytes memory path) internal pure returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) {
+        (tokenIn, fee, tickSpacing, hooks, tokenOut) = toV4Pool(path);
     }
 
     /// @notice Decodes the first pool in path
@@ -43,7 +45,7 @@ library Path {
     function decodeFirstV2Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
         tokenA = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
-        tokenB = toAddress(path, Constants.NEXT_V3_POOL_OFFSET);
+        tokenB = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
     /// @notice Decodes the first pool in path
@@ -54,7 +56,7 @@ library Path {
     function decodeFirstV3Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
         tokenA = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
-        tokenB = toAddress(path, Constants.NEXT_V3_POOL_OFFSET);
+        tokenB = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
     /// @notice Decodes the first pool in path
