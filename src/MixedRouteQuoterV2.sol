@@ -151,7 +151,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     }
 
     /// @dev Fetch an exactIn quote for a V3 Pool on chain
-    function quoteExactInputSingleV3(QuoteExactInputSingleV3Params calldata params)
+    function quoteExactInputSingleV3(QuoteExactInputSingleV3Params memory params)
         public
         override
         returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)
@@ -289,6 +289,22 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
             } else { // assume v3 because of lack of flag
+                (address tokenIn, , address tokenOut) = path.decodeFirstV3Pool();
+
+                (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
+                = quoteExactInputSingleV3(
+                    QuoteExactInputSingleV3Params({
+                        tokenIn: tokenIn,
+                        tokenOut: tokenOut,
+                        amountIn: amountIn,
+                        fee: fee,
+                        sqrtPriceLimitX96: 0
+                    })
+                );
+                sqrtPriceX96AfterList[i] = _sqrtPriceX96After;
+                initializedTicksCrossedList[i] = _initializedTicksCrossed;
+                gasEstimate += _gasEstimate;
+                amountIn = _amountOut;
             }
 
             i++;
