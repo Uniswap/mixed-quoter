@@ -22,22 +22,9 @@ import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {V4PoolTicksCounter} from "./libraries/V4PoolTicksCounter.sol";
 import {Path} from "./libraries/Path.sol";
+import {Constants} from "./libraries/Constants.sol";
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
-    bytes32 internal constant UNISWAP_V3_POOL_INIT_CODE_HASH =
-        0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
-    /// @dev Value to bit mask with path fee to determine if V2 or V3 route
-    // max V3 fee:           000011110100001001000000 (24 bits)
-    // mask:       1 << 23 = 100000000000000000000000 = decimal value 8388608
-    uint24 private constant v2FlagBitmask = 8388608;
-    // mask:       1 << 22 = 10000000000000000000000 = decimal value 4194304
-    uint24 private constant v4FlagBitmask = 8388607;
-
-    /// @dev min valid reason is 6-words long (192 bytes)
-    /// @dev int128[2] includes 32 bytes for offset, 32 bytes for length, and 32 bytes for each element
-    /// @dev Plus sqrtPriceX96After padded to 32 bytes and initializedTicksLoaded padded to 32 bytes
-    uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 192;
-
     using PoolIdLibrary for PoolKey;
     using Path for bytes;
     using SafeCast for uint256;
@@ -65,8 +52,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
     function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private view returns (uint256) {
-        (address pair, address token0) =
-            UniswapV2Library.pairAndToken0For(uniswapV2Poolfactory, UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
+        (address pair, address token0) = UniswapV2Library.pairAndToken0For(
+            uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut
+        );
         (uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(pair).getReserves();
         (uint256 reserveIn, uint256 reserveOut) = tokenIn == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
         return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
@@ -156,7 +144,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
     /// @dev check revert bytes and pass through if considered valid; otherwise revert with different message
     function validateRevertReason(bytes memory reason) private pure returns (bytes memory) {
-        if (reason.length < MINIMUM_VALID_RESPONSE_LENGTH) {
+        if (reason.length < Constants.MINIMUM_VALID_RESPONSE_LENGTH) {
             revert UnexpectedRevertBytes(reason);
         }
         return reason;
@@ -280,13 +268,13 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         while (true) {
             (, uint24 fee,,,) = path.decodeFirstPool();
 
-            if (fee & v2FlagBitmask != 0) {
+            if (fee & Constants.v2FlagBitmask != 0) {
                 (address tokenIn,, address tokenOut) = path.decodeFirstV2Pool();
 
                 amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
-            } else if (fee & v4FlagBitmask != 0) {
+            } else if (fee & Constants.v4FlagBitmask != 0) {
                 /// the outputs of prior swaps become the inputs to subsequent ones
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
                 = quoteExactInputSingleV4(

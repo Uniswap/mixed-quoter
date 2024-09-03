@@ -28,4 +28,20 @@ library Constants {
 
     /// @dev The minimum length of an encoding that contains 2 or more pools
     uint256 internal constant MULTIPLE_V4_POOLS_MIN_LENGTH = V4_POP_OFFSET + NEXT_V4_POOL_OFFSET;
+
+    bytes32 internal constant UNISWAP_V3_POOL_INIT_CODE_HASH =
+        0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+
+    /// @dev Value to bit mask with path fee to determine if V2 or V3 route
+    // max V3 fee:           000011110100001001000000 (24 bits)
+    // mask:       1 << 23 = 100000000000000000000000 = decimal value 8388608
+    uint24 internal constant v2FlagBitmask = 8388608;
+
+    // mask:       1 << 22 = 10000000000000000000000 = decimal value 4194304
+    uint24 internal constant v4FlagBitmask = 4194304;
+
+    /// @dev min valid reason is 6-words long (192 bytes)
+    /// @dev int128[2] includes 32 bytes for offset, 32 bytes for length, and 32 bytes for each element
+    /// @dev Plus sqrtPriceX96After padded to 32 bytes and initializedTicksLoaded padded to 32 bytes
+    uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 192;
 }
