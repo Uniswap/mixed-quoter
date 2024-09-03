@@ -266,11 +266,10 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
         uint256 i = 0;
         while (true) {
-            (, uint24 fee,,,) = path.decodeFirstPool();
+            (, uint24 fee, , ,) = path.decodeFirstPool();
 
             if (fee & Constants.v2FlagBitmask != 0) {
                 (address tokenIn,, address tokenOut) = path.decodeFirstV2Pool();
-
                 amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
