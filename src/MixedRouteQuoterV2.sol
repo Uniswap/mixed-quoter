@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.5.0 <=0.8.20;
+pragma solidity >=0.5.0;
 pragma abicoder v2;
 
 import {IUniswapV2Pair} from "lib/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {BalanceDelta} from "lib/v4-core/src/types/BalanceDelta.sol";
 import {SafeCast} from "lib/v3-core/contracts/libraries/SafeCast.sol";
+import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
+import {PoolIdLibrary} from "lib/v4-core/src/types/PoolId.sol";
+import {StateLibrary} from "lib/v4-core/src/libraries/StateLibrary.sol";
+import {TickMath} from 'lib/v4-core/src/libraries/TickMath.sol';
+
 import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
 
 import {V3Path} from "lib/universal-router/contracts/modules/uniswap/v3/V3Path.sol";
@@ -13,29 +20,31 @@ import {UniswapV2Library} from "lib/universal-router/contracts/modules/uniswap/v
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
+import {V4PoolTicksCounter} from "./libraries/V4PoolTicksCounter.sol";
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
-    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
-    uint160 internal constant MIN_SQRT_RATIO = 4295128739;
-
-    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
-    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
-
     bytes32 internal constant UNISWAP_V3_POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
+    /// @dev min valid reason is 6-words long (192 bytes)
+    /// @dev int128[2] includes 32 bytes for offset, 32 bytes for length, and 32 bytes for each element
+    /// @dev Plus sqrtPriceX96After padded to 32 bytes and initializedTicksLoaded padded to 32 bytes
+    uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 192;
+
+    using PoolIdLibrary for PoolKey;
     using V3Path for bytes;
     using SafeCast for uint256;
     using PoolTicksCounter for IUniswapV3Pool;
+    using StateLibrary for IPoolManager;
 
-    address public immutable uniswapV4PoolManager;
+    IPoolManager public immutable uniswapV4PoolManager;
     address public immutable uniswapV3Poolfactory;
     address public immutable uniswapV2Poolfactory;
 
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 
-    constructor(address _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory) {
+    constructor(IPoolManager _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory) {
         uniswapV4PoolManager = _uniswapV4PoolManager;
         uniswapV3Poolfactory = _uniswapV3Poolfactory;
         uniswapV2Poolfactory = _uniswapV2Poolfactory;
@@ -125,8 +134,28 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         return (amount, sqrtPriceX96After, initializedTicksCrossed, gasEstimate);
     }
 
+    /// @dev parse revert bytes from a single-pool quote
+    function handleV4Revert(bytes memory reason, uint256 gasEstimate)
+        private
+        pure
+        returns (uint256 amount, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256)
+    {
+        reason = validateRevertReason(reason);
+        (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate) = abi.decode(reason, (uint256, uint160, uint32, uint256));
+
+        return (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate);
+    }
+
+    /// @dev check revert bytes and pass through if considered valid; otherwise revert with different message
+    function validateRevertReason(bytes memory reason) private pure returns (bytes memory) {
+        if (reason.length < MINIMUM_VALID_RESPONSE_LENGTH) {
+            revert UnexpectedRevertBytes(reason);
+        }
+        return reason;
+    }
+
     /// @dev Fetch an exactIn quote for a V3 Pool on chain
-    function quoteExactInputSingleV3(QuoteExactInputSingleV3Params memory params)
+    function quoteExactInputSingleV3(QuoteExactInputSingleV3Params calldata params)
         public
         override
         returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)
@@ -140,12 +169,84 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
             zeroForOne,
             params.amountIn.toInt256(),
             params.sqrtPriceLimitX96 == 0
-                ? (zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1)
+                ? (zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
                 : params.sqrtPriceLimitX96,
             abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
         ) {} catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
             return handleV3Revert(reason, pool, gasEstimate);
         }
+    }
+
+    /// @dev Fetch an exactIn quote for a V4 Pool on chain
+    function quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params)
+        public
+        override
+        returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate)
+    {
+        uint256 gasBefore = gasleft();
+        try uniswapV4PoolManager.unlock(abi.encodeCall(this._quoteExactInputSingleV4, (params))) {}
+        catch (bytes memory reason) {
+            gasEstimate = gasBefore - gasleft();
+            return handleV4Revert(reason, gasEstimate);
+        }
+    }
+
+    /// @dev quote an ExactInput swap on a pool, then revert with the result
+    function _quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params)
+        public
+        returns (bytes memory)
+    {
+        (, int24 tickBefore,,) = uniswapV4PoolManager.getSlot0(params.poolKey.toId());
+        bool zeroForOne = params.poolKey.currency0 < params.poolKey.currency1;
+
+        (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) = _swap(
+            params.poolKey,
+            zeroForOne,
+            -int256(int128(params.exactAmount)),
+            params.sqrtPriceLimitX96,
+            params.hookData
+        );
+
+        uint256 amountOut = uint256(int256(-deltas.amount1()));
+
+        uint32 initializedTicksLoaded =
+            V4PoolTicksCounter.countInitializedTicksLoaded(uniswapV4PoolManager, params.poolKey, tickBefore, tickAfter);
+        bytes memory result = abi.encode(amountOut, sqrtPriceX96After, initializedTicksLoaded);
+        assembly {
+            revert(add(0x20, result), mload(result))
+        }
+    }
+
+    /// @dev Execute a swap and return the amounts delta, as well as relevant pool state
+    /// @notice if amountSpecified < 0, the swap is exactInput, otherwise exactOutput
+    function _swap(
+        PoolKey memory poolKey,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bytes calldata hookData
+    ) private returns (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) {
+        deltas = uniswapV4PoolManager.swap(
+            poolKey,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: amountSpecified,
+                sqrtPriceLimitX96: _sqrtPriceLimitOrDefault(sqrtPriceLimitX96, zeroForOne)
+            }),
+            hookData
+        );
+        // only exactOut case
+        if (amountOutCached != 0 && amountOutCached != uint128(zeroForOne ? deltas.amount1() : deltas.amount0())) {
+            revert InsufficientAmountOut();
+        }
+        (sqrtPriceX96After, tickAfter,,) = uniswapV4PoolManager.getSlot0(poolKey.toId());
+    }
+
+    /// @dev return either the sqrtPriceLimit from user input, or the max/min value possible depending on trade direction
+    function _sqrtPriceLimitOrDefault(uint160 sqrtPriceLimitX96, bool zeroForOne) private pure returns (uint160) {
+        return sqrtPriceLimitX96 == 0
+            ? zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            : sqrtPriceLimitX96;
     }
 }
