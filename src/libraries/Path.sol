@@ -63,11 +63,13 @@ library Path {
     function decodeFirstV4Pool(bytes memory path) internal pure returns (PoolKey memory) {
         (address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1) = toV4Pool(path);
         Currency currency0 = Currency.wrap(token0);
+        // fee is guaranteed to be between 4194304 and 5194304 (010000000000000000000000 (4194304) + 000011110100001001000000 (1000000))
+        uint24 v4Fee = fee - Constants.v4FlagBitmask;
         Currency currency1 = Currency.wrap(token1);
         return PoolKey({
             currency0: currency0,
             currency1: currency1,
-            fee: fee,
+            fee: v4Fee,
             tickSpacing: int24(tickSpacing),
             hooks: IHooks(hooks)
         });
