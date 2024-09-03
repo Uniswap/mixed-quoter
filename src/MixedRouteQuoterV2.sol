@@ -11,9 +11,10 @@ import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
 import {PoolIdLibrary} from "lib/v4-core/src/types/PoolId.sol";
 import {StateLibrary} from "lib/v4-core/src/libraries/StateLibrary.sol";
-import {TickMath} from 'lib/v4-core/src/libraries/TickMath.sol';
-
+import {TickMath} from "lib/v4-core/src/libraries/TickMath.sol";
 import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
+import {Currency} from "lib/v4-core/src/types/Currency.sol";
+import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
 
 import {UniswapV2Library} from "lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
@@ -147,7 +148,8 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         returns (uint256 amount, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256)
     {
         reason = validateRevertReason(reason);
-        (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate) = abi.decode(reason, (uint256, uint160, uint32, uint256));
+        (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate) =
+            abi.decode(reason, (uint256, uint160, uint32, uint256));
 
         return (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate);
     }
@@ -185,7 +187,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     }
 
     /// @dev Fetch an exactIn quote for a V4 Pool on chain
-    function quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params)
+    function quoteExactInputSingleV4(QuoteExactInputSingleV4Params memory params)
         public
         override
         returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate)
@@ -199,19 +201,12 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     }
 
     /// @dev quote an ExactInput swap on a pool, then revert with the result
-    function _quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params)
-        public
-        returns (bytes memory)
-    {
+    function _quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params) public returns (bytes memory) {
         (, int24 tickBefore,,) = uniswapV4PoolManager.getSlot0(params.poolKey.toId());
         bool zeroForOne = params.poolKey.currency0 < params.poolKey.currency1;
 
         (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) = _swap(
-            params.poolKey,
-            zeroForOne,
-            -int256(int128(params.exactAmount)),
-            params.sqrtPriceLimitX96,
-            params.hookData
+            params.poolKey, zeroForOne, -int256(int256(params.exactAmount)), params.sqrtPriceLimitX96, params.hookData
         );
 
         uint256 amountOut = uint256(int256(-deltas.amount1()));
@@ -283,10 +278,40 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
         uint256 i = 0;
         while (true) {
-            (, uint24 fee, , ,) = path.decodeFirstPool();
+            (, uint24 fee,,,) = path.decodeFirstPool();
 
             if (fee & v2FlagBitmask != 0) {
-            } else if (fee & v4FlagBitmask != 0) {}
+                (address tokenIn,, address tokenOut) = path.decodeFirstV2Pool();
+
+                amountIn = quoteExactInputSingleV2(
+                    QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
+                );
+            } else if (fee & v4FlagBitmask != 0) {
+                /// the outputs of prior swaps become the inputs to subsequent ones
+                (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
+                = quoteExactInputSingleV4(
+                    QuoteExactInputSingleV4Params({
+                        poolKey: path.decodeFirstV4Pool(),
+                        exactAmount: amountIn,
+                        sqrtPriceLimitX96: 0,
+                        hookData: "" // TODO: figure out how to pass in hookData
+                    })
+                );
+                sqrtPriceX96AfterList[i] = _sqrtPriceX96After;
+                initializedTicksCrossedList[i] = _initializedTicksCrossed;
+                gasEstimate += _gasEstimate;
+                amountIn = _amountOut;
+            } else { // assume v3 because of lack of flag
+            }
+
+            i++;
+
+            /// decide whether to continue or terminate
+            if (path.hasMultiplePools()) {
+                path = path.skipToken();
+            } else {
+                return (amountIn, sqrtPriceX96AfterList, initializedTicksCrossedList, gasEstimate);
+            }
         }
     }
 }

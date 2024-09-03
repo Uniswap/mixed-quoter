@@ -29,7 +29,7 @@ interface IMixedRouteQuoterV2 {
 
     struct QuoteExactInputSingleV4Params {
         PoolKey poolKey;
-        uint128 exactAmount;
+        uint256 exactAmount;
         uint160 sqrtPriceLimitX96;
         bytes hookData;
     }
@@ -40,7 +40,9 @@ interface IMixedRouteQuoterV2 {
     /// tokenOut The token being swapped out
     /// amountIn The desired input amount
     /// @return amountOut The amount of `tokenOut` that would be received
-    function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params) external returns (uint256 amountOut);
+    function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
+        external
+        returns (uint256 amountOut);
 
     /// @notice Returns the amount out received for a given exact input but for a swap of a single pool
     /// @param params The params for the quote, encoded as `QuoteExactInputSingleParams`
@@ -80,12 +82,11 @@ interface IMixedRouteQuoterV2 {
     /// @return initializedTicksCrossedList List of the initialized ticks that the swap crossed for each v3 pool in the path, 0 for v2 pools
     /// @return swapGasEstimate The estimate of the gas that the v3 swaps in the path consume
     function quoteExactInput(bytes memory path, uint256 amountIn)
-    external
-    returns (
-        uint256 amountOut,
-        uint160[] memory sqrtPriceX96AfterList,
-        uint32[] memory initializedTicksCrossedList,
-        uint256 swapGasEstimate
-    );
-
+        external
+        returns (
+            uint256 amountOut,
+            uint160[] memory sqrtPriceX96AfterList,
+            uint32[] memory initializedTicksCrossedList,
+            uint256 swapGasEstimate
+        );
 }

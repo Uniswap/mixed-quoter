@@ -24,9 +24,9 @@ library V4PoolTicksCounter {
     /// direction of the swap. If we are swapping upwards (tickAfter > tickBefore) we don't want to count tickBefore but we do
     /// want to count tickAfter. The opposite is true if we are swapping downwards.
     function countInitializedTicksLoaded(IPoolManager self, PoolKey memory key, int24 tickBefore, int24 tickAfter)
-    internal
-    view
-    returns (uint32 initializedTicksLoaded)
+        internal
+        view
+        returns (uint32 initializedTicksLoaded)
     {
         TickCache memory cache;
 
