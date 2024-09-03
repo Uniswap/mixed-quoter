@@ -5,8 +5,18 @@ import {BytesLib} from "lib/universal-router/contracts/modules/uniswap/v3/BytesL
 import {Constants} from "lib/universal-router/contracts/libraries/Constants.sol";
 
 /// @title Functions for manipulating path data for multihop swaps
-library V3Path {
+library Path {
     using BytesLib for bytes;
+
+    /// @dev The length of the bytes encoded address
+    uint256 private constant ADDR_SIZE = 20;
+    /// @dev The length of the bytes encoded fee
+    uint256 private constant FEE_SIZE = 3;
+    /// @dev The length of the bytes encoded tick spacing
+    uint256 private constant TICK_SPACING_SIZE = 3;
+
+    /// @dev The offset of a single token address and pool fee and tick spacing and hooks address
+    uint256 private constant NEXT_OFFSET = ADDR_SIZE + FEE_SIZE + TICK_SPACING_SIZE + ADDR_SIZE;
 
     /// @notice Returns true iff the path contains two or more pools
     /// @param path The encoded swap path
@@ -15,12 +25,20 @@ library V3Path {
         return path.length >= Constants.MULTIPLE_V3_POOLS_MIN_LENGTH;
     }
 
+    /// @notice Returns the number of pools in the path
+    /// @param path The encoded swap path
+    /// @return The number of pools in the path
+    function numPools(bytes memory path) internal pure returns (uint256) {
+        // Ignore the first token address. From then on every fee and token offset indicates a pool.
+        return ((path.length - ADDR_SIZE) / NEXT_OFFSET);
+    }
+
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
     /// @return tokenA The first token of the given pool
     /// @return fee The fee level of the pool
     /// @return tokenB The second token of the given pool
-    function decodeFirstPool(bytes calldata path) internal pure returns (address, uint24, address) {
+    function decodeFirstPool(bytes calldata path) public pure returns (address, uint24, address) {
         return path.toPool();
     }
 
