@@ -15,16 +15,22 @@ import {TickMath} from 'lib/v4-core/src/libraries/TickMath.sol';
 
 import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
 
-import {V3Path} from "lib/universal-router/contracts/modules/uniswap/v3/V3Path.sol";
 import {UniswapV2Library} from "lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
 import {V4PoolTicksCounter} from "./libraries/V4PoolTicksCounter.sol";
+import {Path} from "./libraries/Path.sol";
 
 contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     bytes32 internal constant UNISWAP_V3_POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+    /// @dev Value to bit mask with path fee to determine if V2 or V3 route
+    // max V3 fee:           000011110100001001000000 (24 bits)
+    // mask:       1 << 23 = 100000000000000000000000 = decimal value 8388608
+    uint24 private constant v2FlagBitmask = 8388608;
+    // mask:       1 << 23 - 1 = 11111111111111111111111 = decimal value 8388607
+    uint24 private constant v4FlagBitmask = 8388607;
 
     /// @dev min valid reason is 6-words long (192 bytes)
     /// @dev int128[2] includes 32 bytes for offset, 32 bytes for length, and 32 bytes for each element
@@ -32,7 +38,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
     uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 192;
 
     using PoolIdLibrary for PoolKey;
-    using V3Path for bytes;
+    using Path for bytes;
     using SafeCast for uint256;
     using PoolTicksCounter for IUniswapV3Pool;
     using StateLibrary for IPoolManager;
@@ -248,5 +254,42 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         return sqrtPriceLimitX96 == 0
             ? zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
             : sqrtPriceLimitX96;
+    }
+
+    /// @dev Fetch an exactIn quote for a V2 pair on chain
+    function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
+        public
+        view
+        override
+        returns (uint256 amountOut)
+    {
+        amountOut = getPairAmountOut(params.amountIn, params.tokenIn, params.tokenOut);
+    }
+
+    /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
+    /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
+    function quoteExactInput(bytes memory path, uint256 amountIn)
+        public
+        override
+        returns (
+            uint256 amountOut,
+            uint160[] memory sqrtPriceX96AfterList,
+            uint32[] memory initializedTicksCrossedList,
+            uint256 gasEstimate
+        )
+    {
+        sqrtPriceX96AfterList = new uint160[](path.numPools());
+        initializedTicksCrossedList = new uint32[](path.numPools());
+
+        uint256 i = 0;
+        while (true) {
+            (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstPool();
+
+            if (fee & v2FlagBitmask != 0) {
+                amountIn = quoteExactInputSingleV2(
+                    QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
+                );
+            }
+        }
     }
 }
