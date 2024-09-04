@@ -30,6 +30,7 @@ interface IMixedRouteQuoterV2 {
 
     struct QuoteExactInputSingleV4Params {
         PoolKey poolKey;
+        bool zeroForOne;
         uint256 exactAmount;
         uint160 sqrtPriceLimitX96;
         bytes hookData;

@@ -200,10 +200,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
     /// @dev quote an ExactInput swap on a pool, then revert with the result
     function _quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params) public returns (bytes memory) {
         (, int24 tickBefore,,) = poolManager.getSlot0(params.poolKey.toId());
-        bool zeroForOne = params.poolKey.currency0 < params.poolKey.currency1;
 
         (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) = _swap(
-            params.poolKey, zeroForOne, -int256(int256(params.exactAmount)), params.sqrtPriceLimitX96, params.hookData
+            params.poolKey, params.zeroForOne, -int256(int256(params.exactAmount)), params.sqrtPriceLimitX96, params.hookData
         );
 
         uint256 amountOut = uint256(int256(-deltas.amount1()));
@@ -275,10 +274,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
 
         uint256 i = 0;
         while (true) {
-            (, uint24 fee,,,) = path.decodeFirstPool();
+            (address tokenIn, uint24 fee,,, address tokenOut) = path.decodeFirstPool();
 
             if (fee & Constants.v2FlagBitmask != 0) {
-                (address tokenIn,, address tokenOut) = path.decodeFirstV2Pool();
                 amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
@@ -288,6 +286,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
                 = quoteExactInputSingleV4(
                     QuoteExactInputSingleV4Params({
                         poolKey: path.decodeFirstV4Pool(),
+                        zeroForOne: tokenIn < tokenOut,
                         exactAmount: amountIn,
                         sqrtPriceLimitX96: 0,
                         hookData: "" // TODO: figure out how to pass in hookData
@@ -298,9 +297,6 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
             } else {
-                // assume v3 because of lack of flag
-                (address tokenIn,, address tokenOut) = path.decodeFirstV3Pool();
-
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
                 = quoteExactInputSingleV3(
                     QuoteExactInputSingleV3Params({

@@ -25,6 +25,7 @@ contract MixedRouteQuoterV2Test is Test {
 
     function test_BasicV4RouteQuote() public {
         uint24 fee = 500;
+        bool zeroForOne = false;
         uint24 tickSpacing = 10;
         address hooks = address(0);
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
@@ -38,6 +39,7 @@ contract MixedRouteQuoterV2Test is Test {
                 tickSpacing: int24(tickSpacing),
                 hooks: IHooks(hooks)
             }),
+            zeroForOne: zeroForOne,
             exactAmount: amountIn,
             sqrtPriceLimitX96: 0,
             hookData: "" // TODO: figure out how to pass in hookData
