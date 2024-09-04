@@ -1,6 +1,10 @@
 name: test
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 env:
   FOUNDRY_PROFILE: ci
@@ -32,3 +36,5 @@ jobs:
         run: |
           forge test -vvv
         id: test
+        env:
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
