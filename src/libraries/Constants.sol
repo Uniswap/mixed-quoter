@@ -40,8 +40,5 @@ library Constants {
     // mask:       1 << 22 = 10000000000000000000000 = decimal value 4194304
     uint24 internal constant v4FlagBitmask = 4194304;
 
-    /// @dev min valid reason is 6-words long (192 bytes)
-    /// @dev int128[2] includes 32 bytes for offset, 32 bytes for length, and 32 bytes for each element
-    /// @dev Plus sqrtPriceX96After padded to 32 bytes and initializedTicksLoaded padded to 32 bytes
-    uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 192;
+    uint256 internal constant MINIMUM_VALID_RESPONSE_LENGTH = 92;
 }

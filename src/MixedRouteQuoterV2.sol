@@ -137,8 +137,8 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
         returns (uint256 amount, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256)
     {
         reason = validateRevertReason(reason);
-        (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate) =
-            abi.decode(reason, (uint256, uint160, uint32, uint256));
+        (amount, sqrtPriceX96After, initializedTicksLoaded) =
+            abi.decode(reason, (uint256, uint160, uint32));
 
         return (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate);
     }
@@ -211,7 +211,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             params.hookData
         );
 
-        uint256 amountOut = uint256(int256(-deltas.amount1()));
+        uint256 amountOut = uint256(int256(deltas.amount0()));
 
         uint32 initializedTicksLoaded =
             V4PoolTicksCounter.countInitializedTicksLoaded(poolManager, params.poolKey, tickBefore, tickAfter);
