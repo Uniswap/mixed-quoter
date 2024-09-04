@@ -277,8 +277,8 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             uint256 gasEstimate
         )
     {
-        sqrtPriceX96AfterList = new uint160[](poolVersions.numPools());
-        initializedTicksCrossedList = new uint32[](poolVersions.numPools());
+        sqrtPriceX96AfterList = new uint160[](poolVersions.length);
+        initializedTicksCrossedList = new uint32[](poolVersions.length);
 
         uint256 i = 0;
         while (true) {
