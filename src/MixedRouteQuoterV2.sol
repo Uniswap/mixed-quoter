@@ -25,7 +25,7 @@ import {V4PoolTicksCounter} from "./libraries/V4PoolTicksCounter.sol";
 import {Path} from "./libraries/Path.sol";
 import {Constants} from "./libraries/Constants.sol";
 
-contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, SafeCallback {
+contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, SafeCallback {
     using PoolIdLibrary for PoolKey;
     using Path for bytes;
     using SafeCast for uint256;
@@ -38,7 +38,9 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 
-    constructor(IPoolManager _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory) SafeCallback(_uniswapV4PoolManager) {
+    constructor(IPoolManager _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory)
+        SafeCallback(_uniswapV4PoolManager)
+    {
         uniswapV3Poolfactory = _uniswapV3Poolfactory;
         uniswapV2Poolfactory = _uniswapV2Poolfactory;
     }
@@ -202,7 +204,11 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Saf
         (, int24 tickBefore,,) = poolManager.getSlot0(params.poolKey.toId());
 
         (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) = _swap(
-            params.poolKey, params.zeroForOne, -int256(int256(params.exactAmount)), params.sqrtPriceLimitX96, params.hookData
+            params.poolKey,
+            params.zeroForOne,
+            -int256(int256(params.exactAmount)),
+            params.sqrtPriceLimitX96,
+            params.hookData
         );
 
         uint256 amountOut = uint256(int256(-deltas.amount1()));

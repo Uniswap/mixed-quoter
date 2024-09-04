@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import "../src/MixedRouteQuoterV2.sol";
-import "../src/interfaces/IMixedRouteQuoterV2.sol";
+import {MixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
+import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
 import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
+import {Currency} from "lib/v4-core/src/types/Currency.sol";
+import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
 
 contract MixedRouteQuoterV2Test is Test {
-    MixedRouterQuoterV2 public mixedRouterQuoterV2;
+    MixedRouteQuoterV2 public mixedRouterQuoterV2;
     IPoolManager public poolManager;
     address public immutable uniswapV4PoolManager = 0xc021A7Deb4a939fd7E661a0669faB5ac7Ba2D5d6;
     address public immutable uniswapV3PoolFactory = 0x0227628f3F023bb0B980b67D528571c95c6DaC1c;
@@ -20,7 +22,7 @@ contract MixedRouteQuoterV2Test is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
         poolManager = IPoolManager(uniswapV4PoolManager);
-        mixedRouterQuoterV2 = new MixedRouterQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
+        mixedRouterQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
     }
 
     function test_BasicV4RouteQuote() public {
@@ -31,20 +33,21 @@ contract MixedRouteQuoterV2Test is Test {
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
         uint256 amountIn = 1000000;
 
-        try mixedRouterQuoterV2.quoteExactInputSingleV4(IMixedRouteQuoterV2.QuoteExactInputSingleV4Params({
-            poolKey: PoolKey({
-                currency0: Currency.wrap(V4_SEPOLIA_USDC_ADDRESS),
-                currency1: Currency.wrap(V4_SEPOLIA_OP_ADDRESS),
-                fee: fee,
-                tickSpacing: int24(tickSpacing),
-                hooks: IHooks(hooks)
-            }),
-            zeroForOne: zeroForOne,
-            exactAmount: amountIn,
-            sqrtPriceLimitX96: 0,
-            hookData: "" // TODO: figure out how to pass in hookData
-        })) {
-        } catch (bytes memory revertData) {
+        try mixedRouterQuoterV2.quoteExactInputSingleV4(
+            IMixedRouteQuoterV2.QuoteExactInputSingleV4Params({
+                poolKey: PoolKey({
+                    currency0: Currency.wrap(V4_SEPOLIA_USDC_ADDRESS),
+                    currency1: Currency.wrap(V4_SEPOLIA_OP_ADDRESS),
+                    fee: fee,
+                    tickSpacing: int24(tickSpacing),
+                    hooks: IHooks(hooks)
+                }),
+                zeroForOne: zeroForOne,
+                exactAmount: amountIn,
+                sqrtPriceLimitX96: 0,
+                hookData: "" // TODO: figure out how to pass in hookData
+            })
+        ) {} catch (bytes memory revertData) {
             console.logString(vm.toString(revertData));
         }
     }
