@@ -67,7 +67,8 @@ library Path {
     /// @param path The bytes encoded swap path
     /// @return PoolKey
     function decodeFirstV4Pool(bytes memory path) internal pure returns (PoolKey memory) {
-        (address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1) = toV4Pool(path);
+        (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) = toV4Pool(path);
+        (address token0, address token1) = tokenIn < tokenOut ? (tokenIn, tokenOut) : (tokenOut, tokenIn);
         Currency currency0 = Currency.wrap(token0);
         // fee is guaranteed to be between 4194304 and 5194304 (010000000000000000000000 (4194304) + 000011110100001001000000 (1000000))
         uint24 v4Fee = fee - Constants.v4FlagBitmask;
@@ -84,22 +85,22 @@ library Path {
     /// @notice Returns the pool details starting at byte 0
     /// @dev length and overflow checks must be carried out before calling
     /// @param path The input bytes string to slice
-    /// @return token0 The address at byte 0
+    /// @return tokenIn The address at byte 0
     /// @return fee The uint24 starting at byte 20
     /// @return tickSpacing The uint24 starting at byte 23
     /// @return hooks The address at byte 26
-    /// @return token1 The address at byte 46
+    /// @return tokenOut The address at byte 46
     function toV4Pool(bytes memory path)
         internal
         pure
-        returns (address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1)
+        returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
     {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        token0 = toAddress(path, 0);
+        tokenIn = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
         tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
-        token1 = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
+        tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
     /// @notice Gets the segment corresponding to the first pool in the path
