@@ -8,6 +8,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
 import {Currency} from "lib/v4-core/src/types/Currency.sol";
 import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
+import {Constants} from "../src/libraries/Constants.sol";
 
 contract MixedRouteQuoterV2Test is Test {
     MixedRouteQuoterV2 public mixedRouterQuoterV2;
@@ -25,7 +26,7 @@ contract MixedRouteQuoterV2Test is Test {
         mixedRouterQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
     }
 
-    function test_BasicV4RouteQuote() public {
+    function test_QuoteExactInputSingleV4() public {
         uint24 fee = 500;
         bool zeroForOne = false;
         uint24 tickSpacing = 10;
@@ -51,6 +52,23 @@ contract MixedRouteQuoterV2Test is Test {
         assertEqUint(amountOut, 9975030024927567);
         assertEqUint(sqrtPriceX96After, 79307469706553480188651360835);
         assertEqUint(initializedTicksLoaded, 0);
+        assertGt(gasEstimate, 0);
+    }
+
+    function test_QuoteExactInput() public {
+        uint24 fee = 500 + Constants.v4FlagBitmask;
+        bool zeroForOne = false;
+        uint24 tickSpacing = 10;
+        address hooks = address(0);
+        // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+        uint256 amountIn = 10000000000000000;
+
+        bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+
+        (uint256 amountOut, uint160[] memory sqrtPriceX96After, uint32[] memory initializedTicksLoaded, uint256 gasEstimate) = mixedRouterQuoterV2.quoteExactInput(path, amountIn);
+        assertEqUint(amountOut, 9975030024927567);
+        assertEqUint(sqrtPriceX96After[0], 79307469706553480188651360835);
+        assertEqUint(initializedTicksLoaded[0], 0);
         assertGt(gasEstimate, 0);
     }
 }
