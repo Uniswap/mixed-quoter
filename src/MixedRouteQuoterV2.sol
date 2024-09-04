@@ -52,14 +52,16 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     }
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
-    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private returns (uint256) {
+    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private returns (uint256 amount1Out, uint256 gasEstimate) {
         address pair = UniswapV2Library.pairFor(
             uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut
         );
-        uint amount1Out;
         address to = pair;
+        uint256 gasBefore = gasleft();
         IUniswapV2Pair(pair).swap(amountIn, amount1Out, to, "");
-        return amount1Out;
+        gasEstimate = gasBefore - gasleft();
+
+        return (amount1Out, gasEstimate);
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata path)
@@ -258,9 +260,9 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         public
         override
-        returns (uint256 amountOut)
+        returns (uint256 amountOut, uint256 gasEstimate)
     {
-        amountOut = getPairAmountOut(params.amountIn, params.tokenIn, params.tokenOut);
+        (amountOut, gasEstimate) = getPairAmountOut(params.amountIn, params.tokenIn, params.tokenOut);
     }
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
@@ -283,9 +285,11 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             (address tokenIn, uint24 fee,,, address tokenOut) = path.decodeFirstPool();
 
             if (fee & Constants.v2FlagBitmask != 0) {
-                amountIn = quoteExactInputSingleV2(
+                (uint256 _amountOut, uint256 _gasEstimate)  = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
+                amountIn = _amountOut;
+                gasEstimate += _gasEstimate;
             } else if (fee & Constants.v4FlagBitmask != 0) {
                 /// the outputs of prior swaps become the inputs to subsequent ones
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
