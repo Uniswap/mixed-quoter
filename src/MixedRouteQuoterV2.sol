@@ -52,17 +52,18 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     }
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
-    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private view returns (uint256) {
-        (address pair, address token0) = UniswapV2Library.pairAndToken0For(
+    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private returns (uint256) {
+        address pair = UniswapV2Library.pairFor(
             uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut
         );
-        (uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(pair).getReserves();
-        (uint256 reserveIn, uint256 reserveOut) = tokenIn == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
-        return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
+        uint amount1Out;
+        address to = pair;
+        IUniswapV2Pair(pair).swap(amountIn, amount1Out, to, "");
+        return amount1Out;
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata path)
-        external
+        public
         view
         override
     {
@@ -256,7 +257,6 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     /// @dev Fetch an exactIn quote for a V2 pair on chain
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         public
-        view
         override
         returns (uint256 amountOut)
     {
