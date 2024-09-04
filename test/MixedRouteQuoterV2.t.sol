@@ -31,9 +31,9 @@ contract MixedRouteQuoterV2Test is Test {
         uint24 tickSpacing = 10;
         address hooks = address(0);
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        uint256 amountIn = 1000000;
+        uint256 amountIn = 10000000000000000;
 
-        try mixedRouterQuoterV2.quoteExactInputSingleV4(
+        (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate) = mixedRouterQuoterV2.quoteExactInputSingleV4(
             IMixedRouteQuoterV2.QuoteExactInputSingleV4Params({
                 poolKey: PoolKey({
                     currency0: Currency.wrap(V4_SEPOLIA_USDC_ADDRESS),
@@ -45,10 +45,12 @@ contract MixedRouteQuoterV2Test is Test {
                 zeroForOne: zeroForOne,
                 exactAmount: amountIn,
                 sqrtPriceLimitX96: 0,
-                hookData: "" // TODO: figure out how to pass in hookData
+                hookData: "0x" // TODO: figure out how to pass in hookData
             })
-        ) {} catch (bytes memory revertData) {
-            console.logString(vm.toString(revertData));
-        }
+        );
+        assertEqUint(amountOut, 9975030024927567);
+        assertEqUint(sqrtPriceX96After, 79307469706553480188651360835);
+        assertEqUint(initializedTicksLoaded, 0);
+        assertGt(gasEstimate, 0);
     }
 }
