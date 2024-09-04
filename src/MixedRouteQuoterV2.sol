@@ -267,7 +267,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, uint256 amountIn)
+    function quoteExactInput(bytes memory path, bytes memory poolVersions, uint256 amountIn)
         public
         override
         returns (
@@ -277,25 +277,30 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             uint256 gasEstimate
         )
     {
-        sqrtPriceX96AfterList = new uint160[](path.numPools());
-        initializedTicksCrossedList = new uint32[](path.numPools());
+        sqrtPriceX96AfterList = new uint160[](poolVersions.numPools());
+        initializedTicksCrossedList = new uint32[](poolVersions.numPools());
 
         uint256 i = 0;
         while (true) {
-            (address tokenIn, uint24 fee,,, address tokenOut) = path.decodeFirstPool();
+            uint8 poolVersion = uint8(poolVersions[i]);
 
-            if (fee & Constants.v2FlagBitmask != 0) {
+            if (poolVersion == uint8(2)) {
+                (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
+
                 (uint256 _amountOut, uint256 _gasEstimate)  = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
                 amountIn = _amountOut;
                 gasEstimate += _gasEstimate;
-            } else if (fee & Constants.v4FlagBitmask != 0) {
+            } else if (poolVersion == uint8(4)) {
+                (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) = path.decodeFirstV4Pool();
+                PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
+
                 /// the outputs of prior swaps become the inputs to subsequent ones
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
                 = quoteExactInputSingleV4(
                     QuoteExactInputSingleV4Params({
-                        poolKey: path.decodeFirstV4Pool(),
+                        poolKey: poolKey,
                         zeroForOne: tokenIn < tokenOut,
                         exactAmount: amountIn,
                         sqrtPriceLimitX96: 0,
@@ -306,7 +311,9 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 initializedTicksCrossedList[i] = _initializedTicksCrossed;
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
-            } else {
+            } else if (poolVersion == uint8(3)) {
+                (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
+
                 (uint256 _amountOut, uint160 _sqrtPriceX96After, uint32 _initializedTicksCrossed, uint256 _gasEstimate)
                 = quoteExactInputSingleV3(
                     QuoteExactInputSingleV3Params({
@@ -321,13 +328,15 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 initializedTicksCrossedList[i] = _initializedTicksCrossed;
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
+            } else {
+                revert InvalidPoolVersion();
             }
 
             i++;
 
             /// decide whether to continue or terminate
-            if (path.hasMultiplePools()) {
-                path = path.skipToken();
+            if (poolVersions.length > i) {
+                path = path.skipToken(poolVersion);
             } else {
                 return (amountIn, sqrtPriceX96AfterList, initializedTicksCrossedList, gasEstimate);
             }

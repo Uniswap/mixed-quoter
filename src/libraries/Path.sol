@@ -11,45 +11,14 @@ import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
 library Path {
     using BytesLib for bytes;
 
-    /// @notice Returns true iff the path contains two or more pools
-    /// @param path The encoded swap path
-    /// @return True if path contains two or more pools, otherwise false
-    function hasMultiplePools(bytes memory path) internal pure returns (bool) {
-        return path.length >= Constants.MULTIPLE_V4_POOLS_MIN_LENGTH;
-    }
-
-    /// @notice Returns the number of pools in the path
-    /// @param path The encoded swap path
-    /// @return The number of pools in the path
-    function numPools(bytes memory path) internal pure returns (uint256) {
-        // Ignore the first token address. From then on every fee and token offset indicates a pool.
-        return ((path.length - Constants.ADDR_SIZE) / Constants.NEXT_V4_POOL_OFFSET);
-    }
-
-    /// @notice Decodes the first pool in path
-    /// @param path The bytes encoded swap path
-    /// @return tokenIn The first token of the given pool
-    /// @return fee The fee level of the pool
-    /// @return tickSpacing The tick spacing of the pool
-    /// @return hooks The hooks address of the pool
-    /// @return tokenOut The second token of the given pool
-    function decodeFirstPool(bytes memory path)
-        internal
-        pure
-        returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
-    {
-        (tokenIn, fee, tickSpacing, hooks, tokenOut) = toV4Pool(path);
-    }
-
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
     /// @return tokenA The first token of the given pool
-    /// @return fee The fee level of the pool
     /// @return tokenB The second token of the given pool
-    function decodeFirstV2Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
+    function decodeFirstV2Pool(bytes memory path) internal pure returns (address tokenA, address tokenB) {
+        if (path.length < Constants.V2_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenA = toAddress(path, 0);
-        fee = toUint24(path, Constants.ADDR_SIZE);
-        tokenB = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
+        tokenB = toAddress(path, Constants.NEXT_V2_POOL_OFFSET);
     }
 
     /// @notice Decodes the first pool in path
@@ -58,49 +27,47 @@ library Path {
     /// @return fee The fee level of the pool
     /// @return tokenB The second token of the given pool
     function decodeFirstV3Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
+        if (path.length < Constants.V3_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenA = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
-        tokenB = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
+        tokenB = toAddress(path, Constants.NEXT_V3_POOL_OFFSET);
     }
 
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
-    /// @return PoolKey
-    function decodeFirstV4Pool(bytes memory path) internal pure returns (PoolKey memory) {
-        (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) = toV4Pool(path);
-        (address token0, address token1) = tokenIn < tokenOut ? (tokenIn, tokenOut) : (tokenOut, tokenIn);
-        Currency currency0 = Currency.wrap(token0);
-        // fee is guaranteed to be between 4194304 and 5194304 (010000000000000000000000 (4194304) + 000011110100001001000000 (1000000))
-        uint24 v4Fee = fee - Constants.v4FlagBitmask;
-        Currency currency1 = Currency.wrap(token1);
-        return PoolKey({
-            currency0: currency0,
-            currency1: currency1,
-            fee: v4Fee,
-            tickSpacing: int24(tickSpacing),
-            hooks: IHooks(hooks)
-        });
-    }
-
-    /// @notice Returns the pool details starting at byte 0
-    /// @dev length and overflow checks must be carried out before calling
-    /// @param path The input bytes string to slice
     /// @return tokenIn The address at byte 0
     /// @return fee The uint24 starting at byte 20
     /// @return tickSpacing The uint24 starting at byte 23
     /// @return hooks The address at byte 26
     /// @return tokenOut The address at byte 46
-    function toV4Pool(bytes memory path)
-        internal
-        pure
-        returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
-    {
+    function decodeFirstV4Pool(bytes memory path) internal pure returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenIn = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
         tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
+    }
+
+    /// @notice v4 pool convert to pool key
+    /// @dev length and overflow checks must be carried out before calling
+    /// @param token0 The address at byte 0
+    /// @param fee The uint24 starting at byte 20
+    /// @param tickSpacing The uint24 starting at byte 23
+    /// @param hooks The address at byte 26
+    /// @param token1 The address at byte 46
+    /// @return PoolKey
+    function v4PoolToPoolKey(address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1) internal pure returns (PoolKey memory) {
+        (address tokenIn, address tokenOut) = token0 < token1 ? (token0, token1) : (token1, token0);
+        Currency currency0 = Currency.wrap(tokenIn);
+        Currency currency1 = Currency.wrap(tokenOut);
+        return PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: fee,
+            tickSpacing: int24(tickSpacing),
+            hooks: IHooks(hooks)
+        });
     }
 
     /// @notice Gets the segment corresponding to the first pool in the path
@@ -116,8 +83,16 @@ library Path {
 
     /// @notice Skips a token + fee element
     /// @param path The swap path
-    function skipToken(bytes memory path) internal pure returns (bytes memory) {
-        return slice(path, Constants.V4_POP_OFFSET, path.length - Constants.V4_POP_OFFSET);
+    function skipToken(bytes memory path, uint8 poolVersion) internal pure returns (bytes memory) {
+        if (poolVersion == uint8(2)) {
+            return slice(path, Constants.NEXT_V2_POOL_OFFSET, path.length - Constants.NEXT_V2_POOL_OFFSET);
+        } else if (poolVersion == uint8(3)) {
+            return slice(path, Constants.NEXT_V3_POOL_OFFSET, path.length - Constants.NEXT_V3_POOL_OFFSET);
+        } else if (poolVersion == uint8(4)) {
+            return slice(path, Constants.NEXT_V4_POOL_OFFSET, path.length - Constants.NEXT_V4_POOL_OFFSET);
+        } else {
+            revert("invalid_pool_version");
+        }
     }
 
     function slice(bytes memory _bytes, uint256 _start, uint256 _length) internal pure returns (bytes memory) {
