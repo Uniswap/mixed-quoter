@@ -12,6 +12,7 @@ import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
 interface IMixedRouteQuoterV2 {
     error UnexpectedRevertBytes(bytes revertData);
     error InsufficientAmountOut();
+    error LockFailure();
 
     struct QuoteExactInputSingleV2Params {
         address tokenIn;

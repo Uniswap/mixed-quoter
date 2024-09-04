@@ -15,6 +15,7 @@ import {TickMath} from "lib/v4-core/src/libraries/TickMath.sol";
 import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
 import {Currency} from "lib/v4-core/src/types/Currency.sol";
 import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
+import {SafeCallback} from "lib/v4-periphery/src/base/SafeCallback.sol";
 
 import {UniswapV2Library} from "lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
@@ -24,22 +25,20 @@ import {V4PoolTicksCounter} from "./libraries/V4PoolTicksCounter.sol";
 import {Path} from "./libraries/Path.sol";
 import {Constants} from "./libraries/Constants.sol";
 
-contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
+contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, SafeCallback {
     using PoolIdLibrary for PoolKey;
     using Path for bytes;
     using SafeCast for uint256;
     using PoolTicksCounter for IUniswapV3Pool;
     using StateLibrary for IPoolManager;
 
-    IPoolManager public immutable uniswapV4PoolManager;
     address public immutable uniswapV3Poolfactory;
     address public immutable uniswapV2Poolfactory;
 
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 
-    constructor(IPoolManager _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory) {
-        uniswapV4PoolManager = _uniswapV4PoolManager;
+    constructor(IPoolManager _uniswapV4PoolManager, address _uniswapV3Poolfactory, address _uniswapV2Poolfactory) SafeCallback(_uniswapV4PoolManager) {
         uniswapV3Poolfactory = _uniswapV3Poolfactory;
         uniswapV2Poolfactory = _uniswapV2Poolfactory;
     }
@@ -142,6 +141,16 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         return (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate);
     }
 
+    function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
+        (bool success, bytes memory returnData) = address(this).call(data);
+        if (success) return returnData;
+        if (returnData.length == 0) revert LockFailure();
+        // if the call failed, bubble up the reason
+        assembly ("memory-safe") {
+            revert(add(returnData, 32), mload(returnData))
+        }
+    }
+
     /// @dev check revert bytes and pass through if considered valid; otherwise revert with different message
     function validateRevertReason(bytes memory reason) private pure returns (bytes memory) {
         if (reason.length < Constants.MINIMUM_VALID_RESPONSE_LENGTH) {
@@ -181,7 +190,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate)
     {
         uint256 gasBefore = gasleft();
-        try uniswapV4PoolManager.unlock(abi.encodeCall(this._quoteExactInputSingleV4, (params))) {}
+        try poolManager.unlock(abi.encodeCall(this._quoteExactInputSingleV4, (params))) {}
         catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
             return handleV4Revert(reason, gasEstimate);
@@ -190,7 +199,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
 
     /// @dev quote an ExactInput swap on a pool, then revert with the result
     function _quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params) public returns (bytes memory) {
-        (, int24 tickBefore,,) = uniswapV4PoolManager.getSlot0(params.poolKey.toId());
+        (, int24 tickBefore,,) = poolManager.getSlot0(params.poolKey.toId());
         bool zeroForOne = params.poolKey.currency0 < params.poolKey.currency1;
 
         (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) = _swap(
@@ -200,7 +209,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         uint256 amountOut = uint256(int256(-deltas.amount1()));
 
         uint32 initializedTicksLoaded =
-            V4PoolTicksCounter.countInitializedTicksLoaded(uniswapV4PoolManager, params.poolKey, tickBefore, tickAfter);
+            V4PoolTicksCounter.countInitializedTicksLoaded(poolManager, params.poolKey, tickBefore, tickAfter);
         bytes memory result = abi.encode(amountOut, sqrtPriceX96After, initializedTicksLoaded);
         assembly {
             revert(add(0x20, result), mload(result))
@@ -216,7 +225,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         uint160 sqrtPriceLimitX96,
         bytes calldata hookData
     ) private returns (BalanceDelta deltas, uint160 sqrtPriceX96After, int24 tickAfter) {
-        deltas = uniswapV4PoolManager.swap(
+        deltas = poolManager.swap(
             poolKey,
             IPoolManager.SwapParams({
                 zeroForOne: zeroForOne,
@@ -229,7 +238,7 @@ contract MixedRouterQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2 {
         if (amountOutCached != 0 && amountOutCached != uint128(zeroForOne ? deltas.amount1() : deltas.amount0())) {
             revert InsufficientAmountOut();
         }
-        (sqrtPriceX96After, tickAfter,,) = uniswapV4PoolManager.getSlot0(poolKey.toId());
+        (sqrtPriceX96After, tickAfter,,) = poolManager.getSlot0(poolKey.toId());
     }
 
     /// @dev return either the sqrtPriceLimit from user input, or the max/min value possible depending on trade direction
