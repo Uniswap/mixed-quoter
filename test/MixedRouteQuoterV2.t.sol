@@ -11,7 +11,7 @@ import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
 import {Constants} from "../src/libraries/Constants.sol";
 
 contract MixedRouteQuoterV2Test is Test {
-    MixedRouteQuoterV2 public mixedRouterQuoterV2;
+    IMixedRouteQuoterV2 public mixedRouterQuoterV2;
     IPoolManager public poolManager;
     address public immutable uniswapV4PoolManager = 0xc021A7Deb4a939fd7E661a0669faB5ac7Ba2D5d6;
     address public immutable uniswapV3PoolFactory = 0x0227628f3F023bb0B980b67D528571c95c6DaC1c;
@@ -57,7 +57,6 @@ contract MixedRouteQuoterV2Test is Test {
 
     function test_QuoteExactInput() public {
         uint24 fee = 500 + Constants.v4FlagBitmask;
-        bool zeroForOne = false;
         uint24 tickSpacing = 10;
         address hooks = address(0);
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
