@@ -9,6 +9,7 @@
     "src/**/*.json"
   ],
   "scripts": {
+    "fmt": "forge fmt",
     "build": "forge build",
     "test": "forge test"
   },
