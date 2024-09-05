@@ -10,7 +10,7 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {Constants} from "../src/libraries/Constants.sol";
 
-contract MixedRouteQuoterV2Test is Test {
+contract MixedRouteQuoterV2TestOnSepolia is Test {
     IMixedRouteQuoterV2 public mixedRouterQuoterV2;
     IPoolManager public poolManager;
     address public immutable uniswapV4PoolManager = 0xc021A7Deb4a939fd7E661a0669faB5ac7Ba2D5d6;
@@ -79,6 +79,28 @@ contract MixedRouteQuoterV2Test is Test {
         assertEqUint(amountOut, 9975030024927567);
         assertEqUint(sqrtPriceX96After[0], 79307469706553480188651360835);
         assertEqUint(initializedTicksLoaded[0], 0);
+        assertGt(gasEstimate, 0);
+    }
+
+    function test_FuzzQuoteExactInput(uint256 amountIn) public {
+        // make the tests mean something (a non-small input) bc otherwise everything rounds to 0
+        vm.assume(amountIn > 10000);
+        vm.assume(amountIn < 10000000000000000);
+
+        uint24 fee = 500;
+        uint24 tickSpacing = 10;
+        address hooks = address(0);
+        // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+        uint16 hookDataBytesLength = 2;
+        bytes memory allHookData = "0x";
+
+        bytes memory path = abi.encodePacked(
+            V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, hookDataBytesLength, V4_SEPOLIA_USDC_ADDRESS
+        );
+        bytes memory poolVersions = abi.encodePacked(uint8(4));
+
+        (uint256 amountOut, , , uint256 gasEstimate) = mixedRouterQuoterV2.quoteExactInput(path, poolVersions, allHookData, amountIn);
+        assertGt(amountOut, 0);
         assertGt(gasEstimate, 0);
     }
 }
