@@ -34,7 +34,8 @@ contract MixedRouteQuoterV2Test is Test {
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
         uint256 amountIn = 10000000000000000;
 
-        (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate) = mixedRouterQuoterV2.quoteExactInputSingleV4(
+        (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate) =
+        mixedRouterQuoterV2.quoteExactInputSingleV4(
             IMixedRouteQuoterV2.QuoteExactInputSingleV4Params({
                 poolKey: PoolKey({
                     currency0: Currency.wrap(V4_SEPOLIA_USDC_ADDRESS),
@@ -61,11 +62,20 @@ contract MixedRouteQuoterV2Test is Test {
         address hooks = address(0);
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
         uint256 amountIn = 10000000000000000;
+        uint16 hookDataBytesLength = 2;
+        bytes memory allHookData = "0x";
 
-        bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+        bytes memory path = abi.encodePacked(
+            V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, hookDataBytesLength, V4_SEPOLIA_USDC_ADDRESS
+        );
         bytes memory poolVersions = abi.encodePacked(uint8(4));
 
-        (uint256 amountOut, uint160[] memory sqrtPriceX96After, uint32[] memory initializedTicksLoaded, uint256 gasEstimate) = mixedRouterQuoterV2.quoteExactInput(path, poolVersions, amountIn);
+        (
+            uint256 amountOut,
+            uint160[] memory sqrtPriceX96After,
+            uint32[] memory initializedTicksLoaded,
+            uint256 gasEstimate
+        ) = mixedRouterQuoterV2.quoteExactInput(path, poolVersions, allHookData, amountIn);
         assertEqUint(amountOut, 9975030024927567);
         assertEqUint(sqrtPriceX96After[0], 79307469706553480188651360835);
         assertEqUint(initializedTicksLoaded[0], 0);

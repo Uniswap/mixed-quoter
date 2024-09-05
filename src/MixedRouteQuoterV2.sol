@@ -52,10 +52,12 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     }
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
-    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private returns (uint256 amount1Out, uint256 gasEstimate) {
-        address pair = UniswapV2Library.pairFor(
-            uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut
-        );
+    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut)
+        private
+        returns (uint256 amount1Out, uint256 gasEstimate)
+    {
+        address pair =
+            UniswapV2Library.pairFor(uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
         address to = pair;
         uint256 gasBefore = gasleft();
         IUniswapV2Pair(pair).swap(amountIn, amount1Out, to, "");
@@ -140,8 +142,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
         returns (uint256 amount, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256)
     {
         reason = validateRevertReason(reason);
-        (amount, sqrtPriceX96After, initializedTicksLoaded) =
-            abi.decode(reason, (uint256, uint160, uint32));
+        (amount, sqrtPriceX96After, initializedTicksLoaded) = abi.decode(reason, (uint256, uint160, uint32));
 
         return (amount, sqrtPriceX96After, initializedTicksLoaded, gasEstimate);
     }
@@ -267,7 +268,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, bytes memory poolVersions, uint256 amountIn)
+    function quoteExactInput(bytes memory path, bytes memory poolVersions, bytes memory allHookData, uint256 amountIn)
         public
         override
         returns (
@@ -287,13 +288,20 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             if (poolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
 
-                (uint256 _amountOut, uint256 _gasEstimate)  = quoteExactInputSingleV2(
+                (uint256 _amountOut, uint256 _gasEstimate) = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
                 amountIn = _amountOut;
                 gasEstimate += _gasEstimate;
             } else if (poolVersion == uint8(4)) {
-                (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) = path.decodeFirstV4Pool();
+                (
+                    address tokenIn,
+                    uint24 fee,
+                    uint24 tickSpacing,
+                    address hooks,
+                    bytes memory hookData,
+                    address tokenOut
+                ) = path.decodeFirstV4Pool(allHookData);
                 PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
 
                 /// the outputs of prior swaps become the inputs to subsequent ones
@@ -304,13 +312,17 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                         zeroForOne: tokenIn < tokenOut,
                         exactAmount: amountIn,
                         sqrtPriceLimitX96: 0,
-                        hookData: "" // TODO: figure out how to pass in hookData
+                        hookData: hookData
                     })
                 );
                 sqrtPriceX96AfterList[i] = _sqrtPriceX96After;
                 initializedTicksCrossedList[i] = _initializedTicksCrossed;
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
+
+                if (poolVersions.length > i) {
+                    allHookData = allHookData.skipHookData(hookData);
+                }
             } else if (poolVersion == uint8(3)) {
                 (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
 
