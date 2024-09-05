@@ -16,7 +16,7 @@ library Constants {
     /// @dev The length of the bytes encoded tick spacing
     uint8 internal constant TICK_SPACING_SIZE = 3;
 
-    /// @dev The length of the bytes used to represent current hook data bytes size
+    /// @dev The length of the bytes used to represent current hook data bytes size. Each hookdata is limited to 256 bytes, so 2 bytes are enough to represent the size (0 - 65535).
     uint16 internal constant HOOKDATA_SIZE = 2;
 
     /// @dev The offset of a single token address (20)
