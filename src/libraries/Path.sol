@@ -39,13 +39,27 @@ library Path {
     /// @return fee The uint24 starting at byte 20
     /// @return tickSpacing The uint24 starting at byte 23
     /// @return hooks The address at byte 26
-    /// @return tokenOut The address at byte 46
-    function decodeFirstV4Pool(bytes memory path) internal pure returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) {
+    /// @return hookData The address at byte 27
+    /// @return tokenOut The address at byte 47
+    function decodeFirstV4Pool(bytes memory path, bytes memory allHookData)
+        internal
+        pure
+        returns (
+            address tokenIn,
+            uint24 fee,
+            uint24 tickSpacing,
+            address hooks,
+            bytes memory hookData,
+            address tokenOut
+        )
+    {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenIn = toAddress(path, 0);
         fee = toUint24(path, Constants.ADDR_SIZE);
         tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
+        uint16 hookDataBytesLength = toUint16(path, Constants.V4_HOOKDATA_OFFSET);
+        hookData = slice(allHookData, 0, hookDataBytesLength);
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
@@ -57,7 +71,11 @@ library Path {
     /// @param hooks The address at byte 26
     /// @param token1 The address at byte 46
     /// @return PoolKey
-    function v4PoolToPoolKey(address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1) internal pure returns (PoolKey memory) {
+    function v4PoolToPoolKey(address token0, uint24 fee, uint24 tickSpacing, address hooks, address token1)
+        internal
+        pure
+        returns (PoolKey memory)
+    {
         (address tokenIn, address tokenOut) = token0 < token1 ? (token0, token1) : (token1, token0);
         Currency currency0 = Currency.wrap(tokenIn);
         Currency currency1 = Currency.wrap(tokenOut);
@@ -93,6 +111,10 @@ library Path {
         } else {
             revert("invalid_pool_version");
         }
+    }
+
+    function skipHookData(bytes memory allHookData, bytes memory hookData) internal pure returns (bytes memory) {
+        return slice(allHookData, hookData.length, allHookData.length - hookData.length);
     }
 
     function slice(bytes memory _bytes, uint256 _start, uint256 _length) internal pure returns (bytes memory) {
@@ -174,6 +196,18 @@ library Path {
 
         assembly {
             tempUint := mload(add(add(_bytes, 0x3), _start))
+        }
+
+        return tempUint;
+    }
+
+    function toUint16(bytes memory _bytes, uint256 _start) internal pure returns (uint16) {
+        require(_start + 2 >= _start, "toUint16_overflow");
+        require(_bytes.length >= _start + 2, "toUint16_outOfBounds");
+        uint16 tempUint;
+
+        assembly {
+            tempUint := mload(add(add(_bytes, 0x2), _start))
         }
 
         return tempUint;
