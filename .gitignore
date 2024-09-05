@@ -16,3 +16,5 @@ docs/
 
 # intellij artifacts
 .idea/
+
+node_modules

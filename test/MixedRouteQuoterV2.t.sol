@@ -3,11 +3,11 @@ pragma solidity ^0.8.24;
 
 import {MixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
 import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
-import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {Test, console} from "forge-std/Test.sol";
-import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
-import {Currency} from "lib/v4-core/src/types/Currency.sol";
-import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {Constants} from "../src/libraries/Constants.sol";
 
 contract MixedRouteQuoterV2Test is Test {

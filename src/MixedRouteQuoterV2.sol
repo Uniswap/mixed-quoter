@@ -2,22 +2,22 @@
 pragma solidity >=0.5.0;
 pragma abicoder v2;
 
-import {IUniswapV2Pair} from "lib/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import {IUniswapV3SwapCallback} from "lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
-import {IUniswapV3Pool} from "lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {BalanceDelta} from "lib/v4-core/src/types/BalanceDelta.sol";
-import {SafeCast} from "lib/v3-core/contracts/libraries/SafeCast.sol";
-import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
-import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
-import {PoolIdLibrary} from "lib/v4-core/src/types/PoolId.sol";
-import {StateLibrary} from "lib/v4-core/src/libraries/StateLibrary.sol";
-import {TickMath} from "lib/v4-core/src/libraries/TickMath.sol";
+import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {SafeCast} from "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {PoolTicksCounter} from "./libraries/PoolTicksCounter.sol";
-import {Currency} from "lib/v4-core/src/types/Currency.sol";
-import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
-import {SafeCallback} from "lib/v4-periphery/src/base/SafeCallback.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {SafeCallback} from "@uniswap/v4-periphery/src/base/SafeCallback.sol";
 
-import {UniswapV2Library} from "lib/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
+import {UniswapV2Library} from "@uniswap/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";

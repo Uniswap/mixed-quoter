@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.6.0;
 
-import {BytesLib} from "lib/universal-router/contracts/modules/uniswap/v3/BytesLib.sol";
+import {BytesLib} from "@uniswap/universal-router/contracts/modules/uniswap/v3/BytesLib.sol";
 import {Constants} from "./Constants.sol";
-import {Currency} from "lib/v4-core/src/types/Currency.sol";
-import {IHooks} from "lib/v4-core/src/interfaces/IHooks.sol";
-import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 
 /// @title Functions for manipulating path data for multihop swaps
 library Path {
