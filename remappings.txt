@@ -7,7 +7,7 @@
 openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
 forge-std/=lib/forge-std/src/
 @ensdomains/=lib/v4-core/node_modules/@ensdomains/
-@openzeppelin/contracts/=lib/v4-core/lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
 ds-test/=lib/universal-router/solmate/lib/ds-test/src/
 erc4626-tests/=lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/
 forge-gas-snapshot/=lib/v4-core/lib/forge-gas-snapshot/src/
