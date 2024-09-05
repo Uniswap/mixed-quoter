@@ -39,9 +39,8 @@ library Path {
     /// @return fee The uint24 starting at byte 20
     /// @return tickSpacing The uint24 starting at byte 23
     /// @return hooks The address at byte 26
-    /// @return hookData The address at byte 27
     /// @return tokenOut The address at byte 47
-    function decodeFirstV4Pool(bytes memory path, bytes memory allHookData)
+    function decodeFirstV4Pool(bytes memory path)
         internal
         pure
         returns (
@@ -49,7 +48,6 @@ library Path {
             uint24 fee,
             uint24 tickSpacing,
             address hooks,
-            bytes memory hookData,
             address tokenOut
         )
     {
@@ -58,8 +56,6 @@ library Path {
         fee = toUint24(path, Constants.ADDR_SIZE);
         tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
-        uint16 hookDataBytesLength = toUint16(path, Constants.V4_HOOKDATA_OFFSET);
-        hookData = slice(allHookData, 0, hookDataBytesLength);
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 

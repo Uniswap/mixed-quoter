@@ -268,7 +268,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, bytes memory poolVersions, bytes memory allHookData, uint256 amountIn)
+    function quoteExactInput(bytes memory path, bytes memory poolVersions, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         public
         override
         returns (
@@ -294,14 +294,14 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 amountIn = _amountOut;
                 gasEstimate += _gasEstimate;
             } else if (poolVersion == uint8(4)) {
+                bytes memory hookData = param.nonEncodableData[i].hookData;
                 (
                     address tokenIn,
                     uint24 fee,
                     uint24 tickSpacing,
                     address hooks,
-                    bytes memory hookData,
                     address tokenOut
-                ) = path.decodeFirstV4Pool(allHookData);
+                ) = path.decodeFirstV4Pool();
                 PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
 
                 /// the outputs of prior swaps become the inputs to subsequent ones
@@ -319,10 +319,6 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 initializedTicksCrossedList[i] = _initializedTicksCrossed;
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
-
-                if (poolVersions.length > i) {
-                    allHookData = allHookData.skipHookData(hookData);
-                }
             } else if (poolVersion == uint8(3)) {
                 (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
 
