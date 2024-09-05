@@ -1,0 +1,3 @@
+MixedRouteQuoterV2TestOnSepolia:test_FuzzQuoteExactInput(uint256) (runs: 5000, μ: 74013, ~: 74014)
+MixedRouteQuoterV2TestOnSepolia:test_QuoteExactInput() (gas: 74116)
+MixedRouteQuoterV2TestOnSepolia:test_QuoteExactInputSingleV4() (gas: 69120)
