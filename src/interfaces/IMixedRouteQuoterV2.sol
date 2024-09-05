@@ -87,14 +87,13 @@ interface IMixedRouteQuoterV2 {
 
     /// @notice Returns the amount out received for a given exact input swap without executing the swap
     /// @param path The path of the swap, i.e. each token pair and the pool fee
-    /// @param poolVersions The version of each pool in the path, encoded as a list of bytes
     /// @param param the remaining non abi encodable data
     /// @param amountIn The amount of the first token to swap
     /// @return amountOut The amount of the last token that would be received
     /// @return sqrtPriceX96AfterList List of the sqrt price after the swap for each v3 pool in the path, 0 for v2 pools
     /// @return initializedTicksCrossedList List of the initialized ticks that the swap crossed for each v3 pool in the path, 0 for v2 pools
     /// @return swapGasEstimate The estimate of the gas that the v3 swaps in the path consume
-    function quoteExactInput(bytes memory path, bytes memory poolVersions, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
+    function quoteExactInput(bytes memory path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         external
         returns (
             uint256 amountOut,

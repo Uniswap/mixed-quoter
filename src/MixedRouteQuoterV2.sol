@@ -268,7 +268,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, bytes memory poolVersions, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
+    function quoteExactInput(bytes memory path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         public
         override
         returns (
@@ -278,12 +278,20 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             uint256 gasEstimate
         )
     {
-        sqrtPriceX96AfterList = new uint160[](poolVersions.length);
-        initializedTicksCrossedList = new uint32[](poolVersions.length);
+        // Not the best way to determine number of pools in the encoded path,
+        // But since each pool encoding has different bytes for efficient abi.encoding,
+        // This is the best way to determine the number of pools in the path
+        // We rely on integrator to pass in the hookdata for each pool.
+        // In case the pool is hookless, we still expect integrator to pass in the hookdata as 0x
+        // This is equivalent of https://github.com/Uniswap/v4-periphery/blob/main/src/lens/Quoter.sol#L66,
+        // where caller has to pass each pool's hookData, even if it's 0x, empty.
+        uint256 numPools = param.nonEncodableData.length;
+        sqrtPriceX96AfterList = new uint160[](numPools);
+        initializedTicksCrossedList = new uint32[](numPools);
 
         uint256 i = 0;
         while (true) {
-            uint8 poolVersion = uint8(poolVersions[i]);
+            uint8 poolVersion = path.decodePoolVersion();
 
             if (poolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
@@ -343,7 +351,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             i++;
 
             /// decide whether to continue or terminate
-            if (poolVersions.length > i) {
+            if (numPools > i) {
                 path = path.skipToken(poolVersion);
             } else {
                 return (amountIn, sqrtPriceX96AfterList, initializedTicksCrossedList, gasEstimate);
