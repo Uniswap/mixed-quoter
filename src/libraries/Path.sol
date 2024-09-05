@@ -13,11 +13,27 @@ library Path {
 
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
+    function decodePoolVersion(bytes memory path) internal pure returns (uint8 poolVersion) {
+        if (path.length < Constants.POOL_VERSION_SIZE) revert BytesLib.SliceOutOfBounds();
+        uint8 bitMaskedPoolVersion = toUint8(path, 0) & Constants.POOL_VERSION_BITMASK;
+        if (bitMaskedPoolVersion == uint8(2)) {
+            return uint8(2);
+        } else if (bitMaskedPoolVersion == uint8(3)) {
+            return uint8(3);
+        } else if (bitMaskedPoolVersion == uint8(0)) {
+            return uint8(4);
+        } else {
+            revert("invalid_pool_version");
+        }
+    }
+
+    /// @notice Decodes the first pool in path
+    /// @param path The bytes encoded swap path
     /// @return tokenA The first token of the given pool
     /// @return tokenB The second token of the given pool
     function decodeFirstV2Pool(bytes memory path) internal pure returns (address tokenA, address tokenB) {
         if (path.length < Constants.V2_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenA = toAddress(path, 0);
+        tokenA = toAddress(path, Constants.POOL_VERSION_SIZE);
         tokenB = toAddress(path, Constants.NEXT_V2_POOL_OFFSET);
     }
 
@@ -28,8 +44,8 @@ library Path {
     /// @return tokenB The second token of the given pool
     function decodeFirstV3Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
         if (path.length < Constants.V3_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenA = toAddress(path, 0);
-        fee = toUint24(path, Constants.ADDR_SIZE);
+        tokenA = toAddress(path, Constants.POOL_VERSION_SIZE);
+        fee = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE);
         tokenB = toAddress(path, Constants.NEXT_V3_POOL_OFFSET);
     }
 
@@ -52,10 +68,10 @@ library Path {
         )
     {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenIn = toAddress(path, 0);
-        fee = toUint24(path, Constants.ADDR_SIZE);
-        tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
-        hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
+        tokenIn = toAddress(path, Constants.POOL_VERSION_SIZE);
+        fee = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE);
+        tickSpacing = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
+        hooks = toAddress(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
@@ -197,13 +213,13 @@ library Path {
         return tempUint;
     }
 
-    function toUint16(bytes memory _bytes, uint256 _start) internal pure returns (uint16) {
-        require(_start + 2 >= _start, "toUint16_overflow");
-        require(_bytes.length >= _start + 2, "toUint16_outOfBounds");
-        uint16 tempUint;
+    function toUint8(bytes memory _bytes, uint256 _start) internal pure returns (uint8) {
+        require(_start + 1 >= _start, "toUint8_overflow");
+        require(_bytes.length >= _start + 1, "toUint8_outOfBounds");
+        uint8 tempUint;
 
         assembly {
-            tempUint := mload(add(add(_bytes, 0x2), _start))
+            tempUint := mload(add(add(_bytes, 0x1), _start))
         }
 
         return tempUint;
