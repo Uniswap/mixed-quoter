@@ -13,7 +13,7 @@ interface IMixedRouteQuoterV2 {
     error UnexpectedRevertBytes(bytes revertData);
     error InsufficientAmountOut();
     error LockFailure();
-    error InvalidPoolVersion();
+    error InvalidPoolVersion(uint8 poolVersion);
 
     struct QuoteExactInputSingleV2Params {
         address tokenIn;

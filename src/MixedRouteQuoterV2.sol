@@ -351,7 +351,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
             } else {
-                revert InvalidPoolVersion();
+                revert InvalidPoolVersion(poolVersion);
             }
 
             i++;
