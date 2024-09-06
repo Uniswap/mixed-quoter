@@ -115,11 +115,11 @@ library Path {
     /// @param path The swap path
     function skipToken(bytes memory path, uint8 poolVersion) internal pure returns (bytes memory) {
         if (poolVersion == uint8(2)) {
-            return slice(path, Constants.NEXT_V2_POOL_OFFSET, path.length - Constants.NEXT_V2_POOL_OFFSET);
+            return slice(path, Constants.V2_POP_OFFSET, path.length - Constants.V2_POP_OFFSET);
         } else if (poolVersion == uint8(3)) {
-            return slice(path, Constants.NEXT_V3_POOL_OFFSET, path.length - Constants.NEXT_V3_POOL_OFFSET);
+            return slice(path, Constants.V3_POP_OFFSET, path.length - Constants.V3_POP_OFFSET);
         } else if (poolVersion == uint8(4)) {
-            return slice(path, Constants.NEXT_V4_POOL_OFFSET, path.length - Constants.NEXT_V4_POOL_OFFSET);
+            return slice(path, Constants.V4_POP_OFFSET, path.length - Constants.V4_POP_OFFSET);
         } else {
             revert("invalid_pool_version");
         }
