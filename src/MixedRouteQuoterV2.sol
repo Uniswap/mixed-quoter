@@ -215,7 +215,13 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             params.hookData
         );
 
-        uint256 amountOut = uint256(int256(deltas.amount0()));
+        uint256 amountOut;
+
+        if (params.zeroForOne) {
+            amountOut = uint256(int256(deltas.amount1()));
+        } else {
+            amountOut = uint256(int256(deltas.amount0()));
+        }
 
         uint32 initializedTicksLoaded =
             V4PoolTicksCounter.countInitializedTicksLoaded(poolManager, params.poolKey, tickBefore, tickAfter);
