@@ -12,7 +12,7 @@ library Constants {
     /// If pool version is 2, 0000011 & 00000010 = 00000010
     /// If pool version is 3, 0000011 & 00000011 = 00000011
     /// If pool version is 4, 0000011 & 00000100 = 00000000
-    uint8 internal constant POOL_VERSION_BITMASK = 2;
+    uint8 internal constant POOL_VERSION_BITMASK = 3;
 
     /// @dev The length of the bytes encoded address
     uint8 internal constant ADDR_SIZE = 20;

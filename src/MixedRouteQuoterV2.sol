@@ -2,7 +2,7 @@
 pragma solidity >=0.5.0;
 pragma abicoder v2;
 
-import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import {UniswapV2Library} from "./libraries/UniswapV2Library.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
@@ -17,7 +17,6 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {SafeCallback} from "@uniswap/v4-periphery/src/base/SafeCallback.sol";
 
-import {UniswapV2Library} from "@uniswap/universal-router/contracts/modules/uniswap/v2/UniswapV2Library.sol";
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
 import {PoolAddress} from "./libraries/PoolAddress.sol";
@@ -52,18 +51,9 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     }
 
     /// @dev Given an amountIn, fetch the reserves of the V2 pair and get the amountOut
-    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut)
-        private
-        returns (uint256 amount1Out, uint256 gasEstimate)
-    {
-        address pair =
-            UniswapV2Library.pairFor(uniswapV2Poolfactory, Constants.UNISWAP_V3_POOL_INIT_CODE_HASH, tokenIn, tokenOut);
-        address to = pair;
-        uint256 gasBefore = gasleft();
-        IUniswapV2Pair(pair).swap(amountIn, amount1Out, to, "");
-        gasEstimate = gasBefore - gasleft();
-
-        return (amount1Out, gasEstimate);
+    function getPairAmountOut(uint256 amountIn, address tokenIn, address tokenOut) private view returns (uint256) {
+        (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniswapV2Poolfactory, tokenIn, tokenOut);
+        return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata path)
@@ -182,7 +172,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             params.sqrtPriceLimitX96 == 0
                 ? (zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
                 : params.sqrtPriceLimitX96,
-            abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
+            abi.encodePacked(uint8(3), params.tokenIn, params.fee, params.tokenOut)
         ) {} catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
             return handleV3Revert(reason, pool, gasEstimate);
@@ -267,9 +257,9 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         public
         override
-        returns (uint256 amountOut, uint256 gasEstimate)
+        returns (uint256 amountOut)
     {
-        (amountOut, gasEstimate) = getPairAmountOut(params.amountIn, params.tokenIn, params.tokenOut);
+        amountOut = getPairAmountOut(params.amountIn, params.tokenIn, params.tokenOut);
     }
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
@@ -302,11 +292,9 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             if (poolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
 
-                (uint256 _amountOut, uint256 _gasEstimate) = quoteExactInputSingleV2(
+                amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
-                amountIn = _amountOut;
-                gasEstimate += _gasEstimate;
             } else if (poolVersion == uint8(4)) {
                 bytes memory hookData = param.nonEncodableData[i].hookData;
                 (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) =

@@ -13,7 +13,7 @@ interface IMixedRouteQuoterV2 {
     error UnexpectedRevertBytes(bytes revertData);
     error InsufficientAmountOut();
     error LockFailure();
-    error InvalidPoolVersion(uint8 poolVersion);
+    error InvalidPoolVersion(uint256 poolVersion);
 
     struct QuoteExactInputSingleV2Params {
         address tokenIn;
@@ -53,7 +53,7 @@ interface IMixedRouteQuoterV2 {
     /// @return amountOut The amount of `tokenOut` that would be received
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         external
-        returns (uint256 amountOut, uint256 gasEstimate);
+        returns (uint256 amountOut);
 
     /// @notice Returns the amount out received for a given exact input but for a swap of a single pool
     /// @param params The params for the quote, encoded as `QuoteExactInputSingleParams`
