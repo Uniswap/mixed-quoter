@@ -309,13 +309,8 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
                 gasEstimate += _gasEstimate;
             } else if (poolVersion == uint8(4)) {
                 bytes memory hookData = param.nonEncodableData[i].hookData;
-                (
-                    address tokenIn,
-                    uint24 fee,
-                    uint24 tickSpacing,
-                    address hooks,
-                    address tokenOut
-                ) = path.decodeFirstV4Pool();
+                (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) =
+                    path.decodeFirstV4Pool();
                 PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
 
                 /// the outputs of prior swaps become the inputs to subsequent ones
