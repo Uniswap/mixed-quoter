@@ -63,5 +63,9 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         ) = mixedRouteQuoterV2.quoteExactInput(mixedRouteQuoterV2Path, extraParams, amountIn);
 
         assertEqUint(amountOut, amountOutV2);
+        assertEqUint(v3SqrtPriceX96AfterList[0], sqrtPriceX96AfterListV2[0]);
+        assertEqUint(v3SqrtPriceX96AfterList[1], sqrtPriceX96AfterListV2[1]);
+        assertEqUint(v3InitializedTicksCrossedList[0], initializedTicksCrossedListV2[0]);
+        assertEqUint(v3InitializedTicksCrossedList[1], initializedTicksCrossedListV2[1]);
     }
 }
