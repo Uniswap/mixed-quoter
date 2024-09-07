@@ -12,7 +12,7 @@ library Constants {
     /// If pool version is 2, 0000011 & 00000010 = 00000010
     /// If pool version is 3, 0000011 & 00000011 = 00000011
     /// If pool version is 4, 0000011 & 00000100 = 00000000
-    uint8 internal constant POOL_VERSION_BITMASK = 2;
+    uint8 internal constant POOL_VERSION_BITMASK = 3;
 
     /// @dev The length of the bytes encoded address
     uint8 internal constant ADDR_SIZE = 20;
@@ -41,7 +41,8 @@ library Constants {
     uint8 internal constant V3_POP_OFFSET = NEXT_V3_POOL_OFFSET + ADDR_SIZE;
 
     /// @dev The offset of pool version (1) + a single token address (20) and pool fee (3) + tick spacing (3) + hooks address (20) = 46
-    uint8 internal constant NEXT_V4_POOL_OFFSET = POOL_VERSION_SIZE + ADDR_SIZE + V4_FEE_SIZE + TICK_SPACING_SIZE + ADDR_SIZE;
+    uint8 internal constant NEXT_V4_POOL_OFFSET =
+        POOL_VERSION_SIZE + ADDR_SIZE + V4_FEE_SIZE + TICK_SPACING_SIZE + ADDR_SIZE;
 
     /// @dev The offset of pool version (1) + a single token address (20) and pool fee (3) + tick spacing (3) + hooks address (20) + token address (20) = 67
     uint8 internal constant V4_POP_OFFSET = NEXT_V4_POOL_OFFSET + ADDR_SIZE;

@@ -1,8 +1,10 @@
 @uniswap/v2-core/=node_modules/@uniswap/v2-core/
+@uniswap/v2-periphery/=node_modules/@uniswap/v2-periphery/
 @uniswap/v3-core/=node_modules/@uniswap/v3-core/
 @uniswap/v4-core/=lib/v4-core/
 @uniswap/v4-periphery/=lib/v4-periphery/
 @uniswap/universal-router/=node_modules/@uniswap/universal-router/
+@uniswap/swap-router-contracts/=node_modules/@uniswap/swap-router-contracts/
 @openzeppelin/=node_modules/@openzeppelin/
 openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
 forge-std/=lib/forge-std/src/

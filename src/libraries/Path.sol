@@ -59,19 +59,16 @@ library Path {
     function decodeFirstV4Pool(bytes memory path)
         internal
         pure
-        returns (
-            address tokenIn,
-            uint24 fee,
-            uint24 tickSpacing,
-            address hooks,
-            address tokenOut
-        )
+        returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
     {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenIn = toAddress(path, Constants.POOL_VERSION_SIZE);
         fee = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE);
         tickSpacing = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
-        hooks = toAddress(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
+        hooks = toAddress(
+            path,
+            Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE
+        );
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 

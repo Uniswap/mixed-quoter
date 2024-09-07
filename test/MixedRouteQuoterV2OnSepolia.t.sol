@@ -14,7 +14,7 @@ import {Quoter} from "v4-periphery/src/lens/Quoter.sol";
 import {PathKey} from "@uniswap/v4-periphery/src/libraries/PathKey.sol";
 
 contract MixedRouteQuoterV2TestOnSepolia is Test {
-    IMixedRouteQuoterV2 public mixedRouterQuoterV2;
+    IMixedRouteQuoterV2 public mixedRouteQuoterV2;
     IQuoter public quoter;
     IPoolManager public poolManager;
     address public immutable uniswapV4PoolManager = 0xc021A7Deb4a939fd7E661a0669faB5ac7Ba2D5d6;
@@ -30,7 +30,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
         poolManager = IPoolManager(uniswapV4PoolManager);
-        mixedRouterQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
+        mixedRouteQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
         quoter = new Quoter(poolManager);
     }
 
@@ -43,7 +43,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint256 amountIn = 10000000000000000;
 
         (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate) =
-        mixedRouterQuoterV2.quoteExactInputSingleV4(
+        mixedRouteQuoterV2.quoteExactInputSingleV4(
             IMixedRouteQuoterV2.QuoteExactInputSingleV4Params({
                 poolKey: PoolKey({
                     currency0: Currency.wrap(V4_SEPOLIA_USDC_ADDRESS),
@@ -72,22 +72,20 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
 
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams = IMixedRouteQuoterV2.ExtraQuoteExactInputParams({
-            nonEncodableData: nonEncodableData
-        });
+        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint256 amountIn = 10000000000000000;
 
         uint8 poolVersions = uint8(4);
-        bytes memory path = abi.encodePacked(
-            poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS
-        );
+        bytes memory path =
+            abi.encodePacked(poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
             uint160[] memory sqrtPriceX96After,
             uint32[] memory initializedTicksLoaded,
             uint256 gasEstimate
-        ) = mixedRouterQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        ) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
         assertEqUint(amountOut, 9975030024927567);
         assertEqUint(sqrtPriceX96After[0], 79307469706553480188651360835);
         assertEqUint(initializedTicksLoaded[0], 0);
@@ -107,20 +105,18 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: hookData}));
 
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams = IMixedRouteQuoterV2.ExtraQuoteExactInputParams({
-            nonEncodableData: nonEncodableData
-        });
+        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 poolVersions = uint8(4);
-        bytes memory path = abi.encodePacked(
-            poolVersions, V4_SEPOLIA_MATIC_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS
-        );
+        bytes memory path =
+            abi.encodePacked(poolVersions, V4_SEPOLIA_MATIC_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
             uint160[] memory sqrtPriceX96After,
             uint32[] memory initializedTicksLoaded,
             uint256 gasEstimate
-        ) = mixedRouterQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        ) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
@@ -167,7 +163,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             exactAmount: uint128(expectedAmountOut)
         });
 
-        (int128[] memory expectedDeltaAmountsIn, , ) = quoter.quoteExactOutput(exactOutParams);
+        (int128[] memory expectedDeltaAmountsIn,,) = quoter.quoteExactOutput(exactOutParams);
         uint256 expectedAmountIn = uint256(uint128(expectedDeltaAmountsIn[0])); // final delta amount in is the positive amount in the first array element
         assertApproxEqAbs(amountIn, expectedAmountIn, 1);
     }
@@ -185,20 +181,18 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: hookData}));
 
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams = IMixedRouteQuoterV2.ExtraQuoteExactInputParams({
-            nonEncodableData: nonEncodableData
-        });
+        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 poolVersions = uint8(4);
-        bytes memory path = abi.encodePacked(
-            poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS
-        );
+        bytes memory path =
+            abi.encodePacked(poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
             uint160[] memory sqrtPriceX96After,
             uint32[] memory initializedTicksLoaded,
             uint256 gasEstimate
-        ) = mixedRouterQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        ) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
@@ -245,7 +239,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             exactAmount: uint128(expectedAmountOut)
         });
 
-        (int128[] memory expectedDeltaAmountsIn, , ) = quoter.quoteExactOutput(exactOutParams);
+        (int128[] memory expectedDeltaAmountsIn,,) = quoter.quoteExactOutput(exactOutParams);
         uint256 expectedAmountIn = uint256(uint128(expectedDeltaAmountsIn[0])); // final delta amount in is the positive amount in the first array element
         assertApproxEqAbs(amountIn, expectedAmountIn, 1);
     }
@@ -272,19 +266,28 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: USDC_MNT_hookData}));
 
         bytes memory path = abi.encodePacked(
-            GRT_USDC_poolVersions, V4_SEPOLIA_GRT_ADDRESS, GRT_USDC_fee, GRT_USDC_tickspacing, GRT_USDC_hooks, V4_SEPOLIA_USDC_ADDRESS,
-            USDC_MNT_poolVersions, V4_SEPOLIA_USDC_ADDRESS, USDC_MNT_fee, USDC_MNT_tickspacing, USDC_MNT_hooks, V4_SEPOLIA_MNT_ADDRESS
+            GRT_USDC_poolVersions,
+            V4_SEPOLIA_GRT_ADDRESS,
+            GRT_USDC_fee,
+            GRT_USDC_tickspacing,
+            GRT_USDC_hooks,
+            V4_SEPOLIA_USDC_ADDRESS,
+            USDC_MNT_poolVersions,
+            V4_SEPOLIA_USDC_ADDRESS,
+            USDC_MNT_fee,
+            USDC_MNT_tickspacing,
+            USDC_MNT_hooks,
+            V4_SEPOLIA_MNT_ADDRESS
         );
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams = IMixedRouteQuoterV2.ExtraQuoteExactInputParams({
-            nonEncodableData: nonEncodableData
-        });
+        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
 
         (
             uint256 amountOut,
             uint160[] memory sqrtPriceX96After,
             uint32[] memory initializedTicksLoaded,
             uint256 gasEstimate
-        ) = mixedRouterQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        ) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
@@ -347,7 +350,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             exactAmount: uint128(expectedAmountOut)
         });
 
-        (int128[] memory expectedDeltaAmountsIn, , ) = quoter.quoteExactOutput(exactOutParams);
+        (int128[] memory expectedDeltaAmountsIn,,) = quoter.quoteExactOutput(exactOutParams);
         uint256 expectedAmountIn = uint256(uint128(expectedDeltaAmountsIn[0])); // final delta amount in is the positive amount in the first array element
         assertApproxEqAbs(amountIn, expectedAmountIn, 1);
     }
