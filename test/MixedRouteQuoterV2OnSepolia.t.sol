@@ -26,6 +26,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
     address V4_SEPOLIA_MATIC_ADDRESS = 0x5F1C75abBb24a6e27E44c9055F50f874Dbe9d8dA;
     address V4_SEPOLIA_GRT_ADDRESS = 0x382658f1DCEB66ab4Df85E376b25e3699D6f1D83;
     address V4_SEPOLIA_MNT_ADDRESS = 0x16A6E5A3773bE7255FCf45e7399546F004E86154;
+    uint8 public v4FeeShift = 20;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
@@ -77,8 +78,9 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint256 amountIn = 10000000000000000;
 
         uint8 poolVersions = uint8(4);
+        uint24 encodedFee = (uint24(poolVersions) << v4FeeShift) + fee;
         bytes memory path =
-            abi.encodePacked(poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+            abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, encodedFee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
@@ -108,8 +110,9 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
             IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 poolVersions = uint8(4);
+        uint24 encodedFee = (uint24(poolVersions) << v4FeeShift) + fee;
         bytes memory path =
-            abi.encodePacked(poolVersions, V4_SEPOLIA_MATIC_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+            abi.encodePacked(V4_SEPOLIA_MATIC_ADDRESS, encodedFee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
@@ -184,8 +187,9 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
             IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 poolVersions = uint8(4);
+        uint24 encodedFee = (uint24(poolVersions) << v4FeeShift) + fee;
         bytes memory path =
-            abi.encodePacked(poolVersions, V4_SEPOLIA_OP_ADDRESS, fee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
+            abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, encodedFee, tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
 
         (
             uint256 amountOut,
@@ -252,7 +256,8 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         // GRT -> USDC -> MNT
         uint8 GRT_USDC_poolVersions = uint8(4);
         uint24 GRT_USDC_fee = 500;
-        uint24 GRT_USDC_tickspacing = 10;
+        uint24 GRT_USDC_encodedFee = (uint24(GRT_USDC_poolVersions) << v4FeeShift) + GRT_USDC_fee;
+         uint24 GRT_USDC_tickspacing = 10;
         address GRT_USDC_hooks = address(0);
         bytes memory GRT_USDC_hookData = "0x";
         IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);
@@ -260,21 +265,19 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
 
         uint8 USDC_MNT_poolVersions = uint8(4);
         uint24 USDC_MNT_fee = 500;
+        uint24 USDC_MNT_encodedFee = (uint24(USDC_MNT_poolVersions) << v4FeeShift) + USDC_MNT_fee;
         uint24 USDC_MNT_tickspacing = 10;
         address USDC_MNT_hooks = address(0);
         bytes memory USDC_MNT_hookData = "0x";
         nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: USDC_MNT_hookData}));
 
         bytes memory path = abi.encodePacked(
-            GRT_USDC_poolVersions,
             V4_SEPOLIA_GRT_ADDRESS,
-            GRT_USDC_fee,
+            GRT_USDC_encodedFee,
             GRT_USDC_tickspacing,
             GRT_USDC_hooks,
             V4_SEPOLIA_USDC_ADDRESS,
-            USDC_MNT_poolVersions,
-            V4_SEPOLIA_USDC_ADDRESS,
-            USDC_MNT_fee,
+            USDC_MNT_encodedFee,
             USDC_MNT_tickspacing,
             USDC_MNT_hooks,
             V4_SEPOLIA_MNT_ADDRESS
