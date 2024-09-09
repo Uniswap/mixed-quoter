@@ -10,21 +10,13 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 /// @title Functions for manipulating path data for multihop swaps
 library Path {
     using BytesLib for bytes;
+    error InvalidPoolVersion(uint24 poolVersion);
 
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
     function decodePoolVersion(bytes memory path) internal pure returns (uint8 poolVersion) {
-        if (path.length < Constants.POOL_VERSION_SIZE) revert BytesLib.SliceOutOfBounds();
-        uint8 bitMaskedPoolVersion = toUint8(path, 0) & Constants.POOL_VERSION_BITMASK;
-        if (bitMaskedPoolVersion == uint8(2)) {
-            return uint8(2);
-        } else if (bitMaskedPoolVersion == uint8(3)) {
-            return uint8(3);
-        } else if (bitMaskedPoolVersion == uint8(0)) {
-            return uint8(4);
-        } else {
-            revert("invalid_pool_version");
-        }
+        if (path.length < Constants.ADDR_SIZE) revert BytesLib.SliceOutOfBounds();
+        poolVersion = (toUint8(path, Constants.ADDR_SIZE) & Constants.POOL_VERSION_BITMASK) >> Constants.POOL_VERSION_BITMASK_SHIFT;
     }
 
     /// @notice Decodes the first pool in path
@@ -33,7 +25,7 @@ library Path {
     /// @return tokenB The second token of the given pool
     function decodeFirstV2Pool(bytes memory path) internal pure returns (address tokenA, address tokenB) {
         if (path.length < Constants.V2_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenA = toAddress(path, Constants.POOL_VERSION_SIZE);
+        tokenA = toAddress(path, 0);
         tokenB = toAddress(path, Constants.NEXT_V2_POOL_OFFSET);
     }
 
@@ -44,8 +36,8 @@ library Path {
     /// @return tokenB The second token of the given pool
     function decodeFirstV3Pool(bytes memory path) internal pure returns (address tokenA, uint24 fee, address tokenB) {
         if (path.length < Constants.V3_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenA = toAddress(path, Constants.POOL_VERSION_SIZE);
-        fee = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE);
+        tokenA = toAddress(path, 0);
+        fee = (toUint24(path, Constants.ADDR_SIZE) << Constants.FEE_SHIFT) >> Constants.FEE_SHIFT;
         tokenB = toAddress(path, Constants.NEXT_V3_POOL_OFFSET);
     }
 
@@ -62,12 +54,12 @@ library Path {
         returns (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut)
     {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
-        tokenIn = toAddress(path, Constants.POOL_VERSION_SIZE);
-        fee = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE);
-        tickSpacing = toUint24(path, Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
+        tokenIn = toAddress(path, 0);
+        fee = (toUint24(path, Constants.ADDR_SIZE) << Constants.FEE_SHIFT) >> Constants.FEE_SHIFT;
+        tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = toAddress(
             path,
-            Constants.POOL_VERSION_SIZE + Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE
+            Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE
         );
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
@@ -112,11 +104,11 @@ library Path {
     /// @param path The swap path
     function skipToken(bytes memory path, uint8 poolVersion) internal pure returns (bytes memory) {
         if (poolVersion == uint8(2)) {
-            return slice(path, Constants.V2_POP_OFFSET, path.length - Constants.V2_POP_OFFSET);
+            return slice(path, Constants.NEXT_V2_POOL_OFFSET, path.length - Constants.NEXT_V2_POOL_OFFSET);
         } else if (poolVersion == uint8(3)) {
-            return slice(path, Constants.V3_POP_OFFSET, path.length - Constants.V3_POP_OFFSET);
+            return slice(path, Constants.NEXT_V3_POOL_OFFSET, path.length - Constants.NEXT_V3_POOL_OFFSET);
         } else if (poolVersion == uint8(4)) {
-            return slice(path, Constants.V4_POP_OFFSET, path.length - Constants.V4_POP_OFFSET);
+            return slice(path, Constants.NEXT_V4_POOL_OFFSET, path.length - Constants.NEXT_V4_POOL_OFFSET);
         } else {
             revert("invalid_pool_version");
         }

@@ -6,6 +6,7 @@ import {IMixedRouteQuoterV1} from "@uniswap/swap-router-contracts/contracts/inte
 import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {MixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
+import {Constants} from "../src/libraries/Constants.sol";
 
 contract MixedRouteQuoterV2TestOnMainnet is Test {
     IMixedRouteQuoterV1 public mixedRouteQuoterV1;
@@ -38,34 +39,45 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
 
         bytes memory mixedRouteQuoterV1Path = abi.encodePacked(WTAO, WTAO_WETH_v3Fee, WETH, flagBitmask, OPSEC);
 
+        uint256 gasBeforeQuoteMixedQuoterV1 = gasleft();
         (
             uint256 amountOut,
             uint160[] memory v3SqrtPriceX96AfterList,
             uint32[] memory v3InitializedTicksCrossedList,
             uint256 v3SwapGasEstimate
         ) = mixedRouteQuoterV1.quoteExactInput(mixedRouteQuoterV1Path, amountIn);
+        uint256 gasAfterQuoteMixedQuoterV1 = gasleft();
 
-        uint8 v2PoolVersion = uint8(2);
         uint8 v3PoolVersion = uint8(3);
+        uint8 v3FeeShift = 20;
+        uint24 WTAO_WETH_encodedV3Fee = (uint24(v3PoolVersion) << v3FeeShift) + WTAO_WETH_v3Fee;
+        uint8 WETH_OPSEC_encodedV2Fee = uint8(2) << 4;
         bytes memory mixedRouteQuoterV2Path =
-            abi.encodePacked(v3PoolVersion, WTAO, WTAO_WETH_v3Fee, WETH, v2PoolVersion, WETH, OPSEC);
+            abi.encodePacked(WTAO, WTAO_WETH_encodedV3Fee, WETH, WETH_OPSEC_encodedV2Fee, OPSEC);
         IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);
         nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
         nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
         IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
             IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
 
+        uint256 gasBeforeQuoteMixedQuoterV2 = gasleft();
         (
             uint256 amountOutV2,
             uint160[] memory sqrtPriceX96AfterListV2,
             uint32[] memory initializedTicksCrossedListV2,
             uint256 swapGasEstimateV2
         ) = mixedRouteQuoterV2.quoteExactInput(mixedRouteQuoterV2Path, extraParams, amountIn);
+        uint256 gasAfterQuoteMixedQuoterV2 = gasleft();
 
         assertEqUint(amountOut, amountOutV2);
         assertEqUint(v3SqrtPriceX96AfterList[0], sqrtPriceX96AfterListV2[0]);
         assertEqUint(v3SqrtPriceX96AfterList[1], sqrtPriceX96AfterListV2[1]);
         assertEqUint(v3InitializedTicksCrossedList[0], initializedTicksCrossedListV2[0]);
         assertEqUint(v3InitializedTicksCrossedList[1], initializedTicksCrossedListV2[1]);
+
+        // Due to mixed quoter v2 having more compact pool version + fee tier encoding for v2,
+        // Overall gas cost of mixed quoter v2 should always be less than mixed quoter v1
+        assertLt(swapGasEstimateV2, v3SwapGasEstimate);
+        assertLt(gasBeforeQuoteMixedQuoterV2 - gasAfterQuoteMixedQuoterV2, gasBeforeQuoteMixedQuoterV1 - gasAfterQuoteMixedQuoterV1);
     }
 }

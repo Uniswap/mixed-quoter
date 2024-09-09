@@ -172,7 +172,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
             params.sqrtPriceLimitX96 == 0
                 ? (zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
                 : params.sqrtPriceLimitX96,
-            abi.encodePacked(uint8(3), params.tokenIn, params.fee, params.tokenOut)
+            abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
         ) {} catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
             return handleV3Revert(reason, pool, gasEstimate);
@@ -256,6 +256,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Safe
     /// @dev Fetch an exactIn quote for a V2 pair on chain
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         public
+        view
         override
         returns (uint256 amountOut)
     {

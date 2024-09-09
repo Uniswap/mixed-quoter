@@ -53,6 +53,7 @@ interface IMixedRouteQuoterV2 {
     /// @return amountOut The amount of `tokenOut` that would be received
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         external
+        view
         returns (uint256 amountOut);
 
     /// @notice Returns the amount out received for a given exact input but for a swap of a single pool
