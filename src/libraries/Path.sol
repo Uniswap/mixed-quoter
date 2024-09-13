@@ -10,13 +10,15 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 /// @title Functions for manipulating path data for multihop swaps
 library Path {
     using BytesLib for bytes;
+
     error InvalidPoolVersion(uint24 poolVersion);
 
     /// @notice Decodes the first pool in path
     /// @param path The bytes encoded swap path
     function decodePoolVersion(bytes memory path) internal pure returns (uint8 poolVersion) {
         if (path.length < Constants.ADDR_SIZE) revert BytesLib.SliceOutOfBounds();
-        poolVersion = (toUint8(path, Constants.ADDR_SIZE) & Constants.POOL_VERSION_BITMASK) >> Constants.POOL_VERSION_BITMASK_SHIFT;
+        poolVersion = (toUint8(path, Constants.ADDR_SIZE) & Constants.POOL_VERSION_BITMASK)
+            >> Constants.POOL_VERSION_BITMASK_SHIFT;
     }
 
     /// @notice Decodes the first pool in path
@@ -57,10 +59,7 @@ library Path {
         tokenIn = toAddress(path, 0);
         fee = (toUint24(path, Constants.ADDR_SIZE) << Constants.FEE_SHIFT) >> Constants.FEE_SHIFT;
         tickSpacing = toUint24(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
-        hooks = toAddress(
-            path,
-            Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE
-        );
+        hooks = toAddress(path, Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
         tokenOut = toAddress(path, Constants.NEXT_V4_POOL_OFFSET);
     }
 
