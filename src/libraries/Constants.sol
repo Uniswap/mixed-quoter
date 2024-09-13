@@ -57,8 +57,7 @@ library Constants {
     uint8 internal constant V3_POP_OFFSET = NEXT_V3_POOL_OFFSET + ADDR_SIZE;
 
     /// @dev The offset of a single token address (20) and pool fee (3) + tick spacing (3) + hooks address (20) = 46
-    uint8 internal constant NEXT_V4_POOL_OFFSET =
-        ADDR_SIZE + V4_FEE_SIZE + TICK_SPACING_SIZE + ADDR_SIZE;
+    uint8 internal constant NEXT_V4_POOL_OFFSET = ADDR_SIZE + V4_FEE_SIZE + TICK_SPACING_SIZE + ADDR_SIZE;
 
     /// @dev The offset of a single token address (20) and pool fee (3) + tick spacing (3) + hooks address (20) + token address (20) = 66
     uint8 internal constant V4_POP_OFFSET = NEXT_V4_POOL_OFFSET + ADDR_SIZE;

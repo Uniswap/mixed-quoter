@@ -13,7 +13,9 @@ import {Constants} from "../src/libraries/Constants.sol";
 import {Quoter} from "v4-periphery/src/lens/Quoter.sol";
 import {PathKey} from "@uniswap/v4-periphery/src/libraries/PathKey.sol";
 
-contract MixedRouteQuoterV2TestOnSepolia is Test {
+// Feel free to delete this old manager manager test file, if we were to go ahead with the quoter refactoring https://github.com/Uniswap/v4-periphery/pull/349
+// The amount of syntax change is not worth the effort to keep this test file. And we already thoroughly tested.
+contract MixedRouteQuoterV2TestOnSepoliaOldPoolMananger is Test {
     IMixedRouteQuoterV2 public mixedRouteQuoterV2;
     IQuoter public quoter;
     IPoolManager public poolManager;
@@ -257,7 +259,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint8 GRT_USDC_poolVersions = uint8(4);
         uint24 GRT_USDC_fee = 500;
         uint24 GRT_USDC_encodedFee = (uint24(GRT_USDC_poolVersions) << v4FeeShift) + GRT_USDC_fee;
-         uint24 GRT_USDC_tickspacing = 10;
+        uint24 GRT_USDC_tickspacing = 10;
         address GRT_USDC_hooks = address(0);
         bytes memory GRT_USDC_hookData = "0x";
         IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);

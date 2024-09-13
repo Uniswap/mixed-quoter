@@ -78,6 +78,9 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         // Due to mixed quoter v2 having more compact pool version + fee tier encoding for v2,
         // Overall gas cost of mixed quoter v2 should always be less than mixed quoter v1
         assertLt(swapGasEstimateV2, v3SwapGasEstimate);
-        assertLt(gasBeforeQuoteMixedQuoterV2 - gasAfterQuoteMixedQuoterV2, gasBeforeQuoteMixedQuoterV1 - gasAfterQuoteMixedQuoterV1);
+        assertLt(
+            gasBeforeQuoteMixedQuoterV2 - gasAfterQuoteMixedQuoterV2,
+            gasBeforeQuoteMixedQuoterV1 - gasAfterQuoteMixedQuoterV1
+        );
     }
 }
