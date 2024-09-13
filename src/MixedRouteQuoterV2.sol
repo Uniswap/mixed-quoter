@@ -37,14 +37,14 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
 
     /// V3 FUNCTIONS
 
-    function getPool(address tokenA, address tokenB, uint24 fee) private view returns (IUniswapV3Pool) {
+    function _getPool(address tokenA, address tokenB, uint24 fee) internal view returns (IUniswapV3Pool) {
         return IUniswapV3Pool(
             PoolAddress.computeAddress(uniswapV3Poolfactory, PoolAddress.getPoolKey(tokenA, tokenB, fee))
         );
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata path)
-        public
+        external
         view
         override
     {
@@ -71,7 +71,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         returns (uint256 amountOut, uint256 gasEstimate)
     {
         bool zeroForOne = params.tokenIn < params.tokenOut;
-        IUniswapV3Pool pool = getPool(params.tokenIn, params.tokenOut, params.fee);
+        IUniswapV3Pool pool = _getPool(params.tokenIn, params.tokenOut, params.fee);
 
         uint256 gasBefore = gasleft();
         try pool.swap(
@@ -151,10 +151,13 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         // This is equivalent of https://github.com/Uniswap/v4-periphery/blob/main/src/lens/Quoter.sol#L66,
         // where caller has to pass each pool's hookData, even if it's 0x, empty.
         uint256 numPools = param.nonEncodableData.length;
-
-        uint256 i = 0;
-        while (true) {
-            uint8 poolVersion = path.decodePoolVersion();
+        uint8 poolVersion = path.decodePoolVersion();
+        for (uint256 i = 0; i < numPools; i++) {
+            // move on to the next pool
+            if (i != 0) {
+                path = path.skipToken(poolVersion);
+                poolVersion = path.decodePoolVersion();
+            }
 
             if (poolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
@@ -197,17 +200,8 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
             } else {
                 revert InvalidPoolVersion(poolVersion);
             }
-
-            unchecked {
-                i++;
-            }
-
-            /// decide whether to continue or terminate
-            if (numPools > i) {
-                path = path.skipToken(poolVersion);
-            } else {
-                return (amountIn, gasEstimate);
-            }
         }
+        // the final amountOut is the amountIn for the "next step" that doesnt exist
+        amountOut = amountIn;
     }
 }
