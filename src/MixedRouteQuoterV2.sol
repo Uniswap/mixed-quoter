@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.5.0;
-pragma abicoder v2;
+pragma solidity ^0.8.0;
 
 import {UniswapV2Library} from "./libraries/UniswapV2Library.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
