@@ -76,9 +76,9 @@ library Path {
         pure
         returns (PoolKey memory)
     {
-        (address tokenIn, address tokenOut) = token0 < token1 ? (token0, token1) : (token1, token0);
-        Currency currency0 = Currency.wrap(tokenIn);
-        Currency currency1 = Currency.wrap(tokenOut);
+        (token0, token1) = token0 < token1 ? (token0, token1) : (token1, token0);
+        Currency currency0 = Currency.wrap(token0);
+        Currency currency1 = Currency.wrap(token1);
         return PoolKey({
             currency0: currency0,
             currency1: currency1,

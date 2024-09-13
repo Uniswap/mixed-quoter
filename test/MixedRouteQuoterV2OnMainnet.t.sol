@@ -40,12 +40,8 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         bytes memory mixedRouteQuoterV1Path = abi.encodePacked(WTAO, WTAO_WETH_v3Fee, WETH, flagBitmask, OPSEC);
 
         uint256 gasBeforeQuoteMixedQuoterV1 = gasleft();
-        (
-            uint256 amountOut,
-            uint160[] memory v3SqrtPriceX96AfterList,
-            uint32[] memory v3InitializedTicksCrossedList,
-            uint256 v3SwapGasEstimate
-        ) = mixedRouteQuoterV1.quoteExactInput(mixedRouteQuoterV1Path, amountIn);
+        (uint256 amountOut,,, uint256 v3SwapGasEstimate) =
+            mixedRouteQuoterV1.quoteExactInput(mixedRouteQuoterV1Path, amountIn);
         uint256 gasAfterQuoteMixedQuoterV1 = gasleft();
 
         uint8 v3PoolVersion = uint8(3);
@@ -61,19 +57,11 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
             IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
 
         uint256 gasBeforeQuoteMixedQuoterV2 = gasleft();
-        (
-            uint256 amountOutV2,
-            uint160[] memory sqrtPriceX96AfterListV2,
-            uint32[] memory initializedTicksCrossedListV2,
-            uint256 swapGasEstimateV2
-        ) = mixedRouteQuoterV2.quoteExactInput(mixedRouteQuoterV2Path, extraParams, amountIn);
+        (uint256 amountOutV2, uint256 swapGasEstimateV2) =
+            mixedRouteQuoterV2.quoteExactInput(mixedRouteQuoterV2Path, extraParams, amountIn);
         uint256 gasAfterQuoteMixedQuoterV2 = gasleft();
 
         assertEqUint(amountOut, amountOutV2);
-        assertEqUint(v3SqrtPriceX96AfterList[0], sqrtPriceX96AfterListV2[0]);
-        assertEqUint(v3SqrtPriceX96AfterList[1], sqrtPriceX96AfterListV2[1]);
-        assertEqUint(v3InitializedTicksCrossedList[0], initializedTicksCrossedListV2[0]);
-        assertEqUint(v3InitializedTicksCrossedList[1], initializedTicksCrossedListV2[1]);
 
         // Due to mixed quoter v2 having more compact pool version + fee tier encoding for v2,
         // Overall gas cost of mixed quoter v2 should always be less than mixed quoter v1

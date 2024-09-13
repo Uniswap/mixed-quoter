@@ -50,12 +50,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint24 encodedFee = (uint24(poolVersions) << v4FeeShift) + fee;
         bytes memory path = abi.encodePacked(V4_SEPOLIA_A_ADDRESS, encodedFee, tickSpacing, hooks, V4_SEPOLIA_B_ADDRESS);
 
-        (
-            uint256 amountOut,
-            uint160[] memory sqrtPriceX96After,
-            uint32[] memory initializedTicksLoaded,
-            uint256 gasEstimate
-        ) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        (uint256 amountOut, uint256 gasEstimate) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
@@ -74,16 +69,9 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             exactAmount: uint128(amountIn)
         });
 
-        (
-            int128[] memory expectedDeltaAmounts,
-            uint160[] memory expectedSqrtPriceX96After,
-            uint32[] memory expectedInitializedTicksLoaded
-        ) = quoter.quoteExactInput(exactInParams);
+        (uint256 expectedAmountOut,) = quoter.quoteExactInput(exactInParams);
 
-        uint256 expectedAmountOut = uint256(uint128(-expectedDeltaAmounts[exactInPathKey.length])); // negate the final delta amount out
         assertEqUint(amountOut, expectedAmountOut);
-        assertEqUint(sqrtPriceX96After[0], expectedSqrtPriceX96After[0]);
-        assertEqUint(initializedTicksLoaded[0], expectedInitializedTicksLoaded[0]);
 
         // mixed quoter doesn't support exact out by design, but we can cross check the final amount in will equate the original input amount in,
         // if we call the v4 quoter for the exact out quote. v3 and v4 quoter support exact out quote
@@ -102,8 +90,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             exactAmount: uint128(expectedAmountOut)
         });
 
-        (int128[] memory expectedDeltaAmountsIn,,) = quoter.quoteExactOutput(exactOutParams);
-        uint256 expectedAmountIn = uint256(uint128(expectedDeltaAmountsIn[0])); // final delta amount in is the positive amount in the first array element
+        (uint256 expectedAmountIn,) = quoter.quoteExactOutput(exactOutParams);
         assertApproxEqAbs(amountIn, expectedAmountIn, 1);
     }
 }
