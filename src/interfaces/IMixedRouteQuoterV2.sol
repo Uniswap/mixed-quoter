@@ -10,10 +10,8 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 /// @dev These functions are not marked view because they rely on calling non-view functions and reverting
 /// to compute the result. They are also not gas efficient and should not be called on-chain.
 interface IMixedRouteQuoterV2 {
-    error UnexpectedRevertBytes(bytes revertData);
-    error InsufficientAmountOut();
-    error LockFailure();
     error InvalidPoolVersion(uint256 poolVersion);
+    error NoLiquidityV3();
 
     struct QuoteExactInputSingleV2Params {
         address tokenIn;
@@ -64,12 +62,10 @@ interface IMixedRouteQuoterV2 {
     /// amountIn The desired input amount
     /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
     /// @return amountOut The amount of `tokenOut` that would be received
-    /// @return sqrtPriceX96After The sqrt price of the pool after the swap
-    /// @return initializedTicksCrossed The number of initialized ticks that the swap crossed
     /// @return gasEstimate The estimate of the gas that the swap consumes
     function quoteExactInputSingleV3(QuoteExactInputSingleV3Params calldata params)
         external
-        returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate);
+        returns (uint256 amountOut, uint256 gasEstimate);
 
     /// @notice Returns the delta amounts for a given exact input swap of a single pool
     /// @param params The params for the quote, encoded as `QuoteExactSingleParams`
@@ -79,27 +75,18 @@ interface IMixedRouteQuoterV2 {
     /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
     /// hookData arbitrary hookData to pass into the associated hooks
     /// @return amountOut The amount of `tokenOut` that would be received
-    /// @return sqrtPriceX96After The sqrt price of the pool after the swap
-    /// @return initializedTicksLoaded The number of initialized ticks that the swap loaded
     /// @return gasEstimate The estimate of the gas that the swap consumes
     function quoteExactInputSingleV4(QuoteExactInputSingleV4Params calldata params)
         external
-        returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksLoaded, uint256 gasEstimate);
+        returns (uint256 amountOut, uint256 gasEstimate);
 
     /// @notice Returns the amount out received for a given exact input swap without executing the swap
     /// @param path The path of the swap, i.e. each token pair and the pool fee
     /// @param param the remaining non abi encodable data
     /// @param amountIn The amount of the first token to swap
     /// @return amountOut The amount of the last token that would be received
-    /// @return sqrtPriceX96AfterList List of the sqrt price after the swap for each v3 pool in the path, 0 for v2 pools
-    /// @return initializedTicksCrossedList List of the initialized ticks that the swap crossed for each v3 pool in the path, 0 for v2 pools
-    /// @return swapGasEstimate The estimate of the gas that the v3 swaps in the path consume
+    /// @return gasEstimate The estimate of the gas that the v3 and v4 swaps in the path consume
     function quoteExactInput(bytes memory path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         external
-        returns (
-            uint256 amountOut,
-            uint160[] memory sqrtPriceX96AfterList,
-            uint32[] memory initializedTicksCrossedList,
-            uint256 swapGasEstimate
-        );
+        returns (uint256 amountOut, uint256 gasEstimate);
 }
