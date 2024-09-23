@@ -24,14 +24,12 @@ interface IMixedRouteQuoterV2 {
         address tokenOut;
         uint256 amountIn;
         uint24 fee;
-        uint160 sqrtPriceLimitX96;
     }
 
     struct QuoteExactInputSingleV4Params {
         PoolKey poolKey;
         bool zeroForOne;
         uint256 exactAmount;
-        uint160 sqrtPriceLimitX96;
         bytes hookData;
     }
 
@@ -60,7 +58,6 @@ interface IMixedRouteQuoterV2 {
     /// tokenOut The token being swapped out
     /// fee The fee of the token pool to consider for the pair
     /// amountIn The desired input amount
-    /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
     /// @return amountOut The amount of `tokenOut` that would be received
     /// @return gasEstimate The estimate of the gas that the swap consumes
     function quoteExactInputSingleV3(QuoteExactInputSingleV3Params calldata params)
@@ -72,7 +69,6 @@ interface IMixedRouteQuoterV2 {
     /// poolKey The key for identifying a V4 pool
     /// zeroForOne If the swap is from currency0 to currency1
     /// exactAmount The desired input amount
-    /// sqrtPriceLimitX96 The price limit of the pool that cannot be exceeded by the swap
     /// hookData arbitrary hookData to pass into the associated hooks
     /// @return amountOut The amount of `tokenOut` that would be received
     /// @return gasEstimate The estimate of the gas that the swap consumes
