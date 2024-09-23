@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {UniswapV2Library} from "./libraries/UniswapV2Library.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SafeCast} from "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -12,7 +13,6 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {BaseV4Quoter} from "@uniswap/v4-periphery/src/base/BaseV4Quoter.sol";
 import {QuoterRevert} from "@uniswap/v4-periphery/src/libraries/QuoterRevert.sol";
-import {SqrtPriceLimitHelper} from "@uniswap/v4-periphery/src/libraries/SqrtPriceLimitHelper.sol";
 
 import {CallbackValidation} from "./libraries/CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
@@ -23,7 +23,6 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
     using Path for bytes;
     using SafeCast for uint256;
     using QuoterRevert for *;
-    using SqrtPriceLimitHelper for uint160;
 
     address public immutable uniswapV3Poolfactory;
     address public immutable uniswapV2Poolfactory;
@@ -78,11 +77,11 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
             address(this), // address(0) might cause issues with some tokens
             zeroForOne,
             params.amountIn.toInt256(),
-            params.sqrtPriceLimitX96.getSqrtPriceLimit(zeroForOne),
+            zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1,
             abi.encodePacked(params.tokenIn, params.fee, params.tokenOut)
         ) {} catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
-            amountOut = reason.parseReturnData();
+            amountOut = reason.parseQuoteAmount();
         }
     }
 
@@ -97,7 +96,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         try poolManager.unlock(abi.encodeCall(this._quoteExactInputSingleV4, (params))) {}
         catch (bytes memory reason) {
             gasEstimate = gasBefore - gasleft();
-            amountOut = reason.parseReturnData();
+            amountOut = reason.parseQuoteAmount();
         }
     }
 
@@ -107,13 +106,8 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         selfOnly
         returns (bytes memory)
     {
-        BalanceDelta swapDelta = _swap(
-            params.poolKey,
-            params.zeroForOne,
-            -int256(int256(params.exactAmount)),
-            params.sqrtPriceLimitX96,
-            params.hookData
-        );
+        BalanceDelta swapDelta =
+            _swap(params.poolKey, params.zeroForOne, -int256(int256(params.exactAmount)), params.hookData);
 
         // the output delta of a swap is positive
         uint256 amountOut = params.zeroForOne ? uint128(swapDelta.amount1()) : uint128(swapDelta.amount0());
@@ -177,7 +171,6 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                         poolKey: poolKey,
                         zeroForOne: tokenIn < tokenOut,
                         exactAmount: amountIn,
-                        sqrtPriceLimitX96: 0,
                         hookData: hookData
                     })
                 );
@@ -187,13 +180,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                 (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
 
                 (uint256 _amountOut, uint256 _gasEstimate) = quoteExactInputSingleV3(
-                    QuoteExactInputSingleV3Params({
-                        tokenIn: tokenIn,
-                        tokenOut: tokenOut,
-                        amountIn: amountIn,
-                        fee: fee,
-                        sqrtPriceLimitX96: 0
-                    })
+                    QuoteExactInputSingleV3Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, fee: fee})
                 );
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
