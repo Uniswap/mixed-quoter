@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import {UniswapV2Library} from "./libraries/UniswapV2Library.sol";
+import {V2Library} from "./libraries/V2Library.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -14,9 +14,9 @@ import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {BaseV4Quoter} from "@uniswap/v4-periphery/src/base/BaseV4Quoter.sol";
 import {QuoterRevert} from "@uniswap/v4-periphery/src/libraries/QuoterRevert.sol";
 
-import {CallbackValidation} from "./libraries/CallbackValidation.sol";
+import {V3CallbackValidation} from "./libraries/V3CallbackValidation.sol";
 import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
-import {PoolAddress} from "./libraries/PoolAddress.sol";
+import {V3PoolAddress} from "./libraries/V3PoolAddress.sol";
 import {Path} from "./libraries/Path.sol";
 
 contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, BaseV4Quoter {
@@ -38,7 +38,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
 
     function _getPool(address tokenA, address tokenB, uint24 fee) internal view returns (IUniswapV3Pool) {
         return IUniswapV3Pool(
-            PoolAddress.computeAddress(uniswapV3Poolfactory, PoolAddress.getPoolKey(tokenA, tokenB, fee))
+            V3PoolAddress.computeAddress(uniswapV3Poolfactory, V3PoolAddress.getPoolKey(tokenA, tokenB, fee))
         );
     }
 
@@ -50,7 +50,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         // swaps entirely within 0-liquidity regions are not supported
         if (amount0Delta <= 0 && amount1Delta <= 0) revert NoLiquidityV3();
         (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
-        CallbackValidation.verifyCallback(uniswapV3Poolfactory, tokenIn, tokenOut, fee);
+        V3CallbackValidation.verifyCallback(uniswapV3Poolfactory, tokenIn, tokenOut, fee);
 
         (bool isExactInput, uint256 inputAmount, uint256 outputAmount) = amount0Delta > 0
             ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
@@ -124,15 +124,15 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         returns (uint256 amountOut)
     {
         (uint256 reserveIn, uint256 reserveOut) =
-            UniswapV2Library.getReserves(uniswapV2Poolfactory, params.tokenIn, params.tokenOut);
-        return UniswapV2Library.getAmountOut(params.amountIn, reserveIn, reserveOut);
+            V2Library.getReserves(uniswapV2Poolfactory, params.tokenIn, params.tokenOut);
+        return V2Library.getAmountOut(params.amountIn, reserveIn, reserveOut);
     }
 
     /// COMBINED ENTRYPOINT
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
+    function quoteExactInput(bytes calldata path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         public
         override
         returns (uint256 amountOut, uint256 gasEstimate)
@@ -145,22 +145,22 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         // This is equivalent of https://github.com/Uniswap/v4-periphery/blob/main/src/lens/Quoter.sol#L66,
         // where caller has to pass each pool's hookData, even if it's 0x, empty.
         uint256 numPools = param.nonEncodableData.length;
-        uint8 poolVersion = path.decodePoolVersion();
+        uint8 protocolVersion = path.decodeProtocolVersion();
         for (uint256 i = 0; i < numPools; i++) {
             // move on to the next pool
             if (i != 0) {
-                path = path.skipToken(poolVersion);
-                poolVersion = path.decodePoolVersion();
+                path = path.skipToken(protocolVersion);
+                protocolVersion = path.decodeProtocolVersion();
             }
 
-            if (poolVersion == uint8(2)) {
+            if (protocolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
 
                 amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
-            } else if (poolVersion == uint8(4)) {
-                bytes memory hookData = param.nonEncodableData[i].hookData;
+            } else if (protocolVersion == uint8(4)) {
+                bytes calldata hookData = param.nonEncodableData[i].hookData;
                 (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) =
                     path.decodeFirstV4Pool();
                 PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
@@ -176,7 +176,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                 );
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
-            } else if (poolVersion == uint8(3)) {
+            } else if (protocolVersion == uint8(3)) {
                 (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
 
                 (uint256 _amountOut, uint256 _gasEstimate) = quoteExactInputSingleV3(
@@ -185,7 +185,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
             } else {
-                revert InvalidPoolVersion(poolVersion);
+                revert InvalidProtocolVersion(protocolVersion);
             }
         }
         // the final amountOut is the amountIn for the "next step" that doesnt exist

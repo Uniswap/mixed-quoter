@@ -4,21 +4,21 @@ pragma solidity ^0.8.17;
 /// @title Constant state
 /// @notice Constant state used by the Mixed Quoter
 library Constants {
-    /// @dev The bitmask for the pool version, used to determine the pool version
+    /// @dev The bitmask for the protocol version, used to determine the protocol version
     /// 01110000 is the bit mask.
     /// We only need one byte, 8 bit, because the fee is largest 100%, 1000000 hundreds of bps, or 000011110100001001000000
-    /// So the first four bit can be reserved for pool versions.
-    /// If pool version is 2, 0010xxxxxxxxxxxxxxxxxxxx & 01110000 = 00100000
-    /// If pool version is 3, 0011xxxxxxxxxxxxxxxxxxxx & 01110000 = 00110000
-    /// If pool version is 4, 0100xxxxxxxxxxxxxxxxxxxx & 01110000 = 01000000
-    uint8 internal constant POOL_VERSION_BITMASK = 112;
+    /// So the first four bit can be reserved for protocol versions.
+    /// If protocol version is 2, 0010xxxxxxxxxxxxxxxxxxxx & 01110000 = 00100000
+    /// If protocol version is 3, 0011xxxxxxxxxxxxxxxxxxxx & 01110000 = 00110000
+    /// If protocol version is 4, 0100xxxxxxxxxxxxxxxxxxxx & 01110000 = 01000000
+    uint8 internal constant PROTOCOL_VERSION_BITMASK = 0x70; // 0111 0000
 
-    /// @dev pool version bit shift to recover the pool version
+    /// @dev protocol version bit shift to recover the protocol version
     /// 20 is the number of bits in the bitmask
-    /// If pool version is 2, 00100000 >> 4 = 0010
-    /// If pool version is 3, 00110000 >> 4 = 0011
-    /// If pool version is 4, 01000000 >> 4 = 0100
-    uint8 internal constant POOL_VERSION_BITMASK_SHIFT = 4;
+    /// If protocol version is 2, 00100000 >> 4 = 0010
+    /// If protocol version is 3, 00110000 >> 4 = 0011
+    /// If protocol version is 4, 01000000 >> 4 = 0100
+    uint8 internal constant PROTOCOL_VERSION_BITMASK_SHIFT = 4;
 
     /// @dev fee bit shift to recover the fee, applicable to v3 v4 LP fees
     /// left shift 4 bits, and then right shift 4 bits
@@ -30,7 +30,7 @@ library Constants {
     uint8 internal constant ADDR_SIZE = 20;
 
     /// @dev The length of the bytes encoded fee
-    /// V2 we only have 1 byte fee, because v2 fee is only 0.3%, so we only need to encode the pool version size, which is the same as v2 fee size.
+    /// V2 we only have 1 byte fee, because v2 fee is only 0.3%, so we only need to encode the protocol version size, which is the same as v2 fee size.
     uint8 internal constant V2_FEE_SIZE = 1;
 
     /// @dev The length of the bytes encoded fee

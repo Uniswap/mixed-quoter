@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {IMixedRouteQuoterV1} from "@uniswap/swap-router-contracts/contracts/interfaces/IMixedRouteQuoterV1.sol";
 import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -42,14 +42,16 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         uint256 gasBeforeQuoteMixedQuoterV1 = gasleft();
         (uint256 amountOut,,, uint256 v3SwapGasEstimate) =
             mixedRouteQuoterV1.quoteExactInput(mixedRouteQuoterV1Path, amountIn);
+
         uint256 gasAfterQuoteMixedQuoterV1 = gasleft();
 
-        uint8 v3PoolVersion = uint8(3);
+        uint8 v3ProtocolVersion = uint8(3);
         uint8 v3FeeShift = 20;
-        uint24 WTAO_WETH_encodedV3Fee = (uint24(v3PoolVersion) << v3FeeShift) + WTAO_WETH_v3Fee;
+        uint24 WTAO_WETH_encodedV3Fee = (uint24(v3ProtocolVersion) << v3FeeShift) + WTAO_WETH_v3Fee;
         uint8 WETH_OPSEC_encodedV2Fee = uint8(2) << 4;
         bytes memory mixedRouteQuoterV2Path =
             abi.encodePacked(WTAO, WTAO_WETH_encodedV3Fee, WETH, WETH_OPSEC_encodedV2Fee, OPSEC);
+
         IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);
         nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
         nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
@@ -63,7 +65,7 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
 
         assertEqUint(amountOut, amountOutV2);
 
-        // Due to mixed quoter v2 having more compact pool version + fee tier encoding for v2,
+        // Due to mixed quoter v2 having more compact protocol version + fee tier encoding for v2,
         // Overall gas cost of mixed quoter v2 should always be less than mixed quoter v1
         assertLt(swapGasEstimateV2, v3SwapGasEstimate);
         assertLt(
