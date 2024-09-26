@@ -46,8 +46,8 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
         IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
             IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
-        uint8 poolVersions = uint8(4);
-        uint24 encodedFee = (uint24(poolVersions) << v4FeeShift) + fee;
+        uint8 protocolVersion = uint8(4);
+        uint24 encodedFee = (uint24(protocolVersion) << v4FeeShift) + fee;
         bytes memory path = abi.encodePacked(V4_SEPOLIA_A_ADDRESS, encodedFee, tickSpacing, hooks, V4_SEPOLIA_B_ADDRESS);
 
         (uint256 amountOut, uint256 gasEstimate) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);

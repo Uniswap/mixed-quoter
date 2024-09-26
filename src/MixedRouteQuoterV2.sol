@@ -132,7 +132,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
 
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
-    function quoteExactInput(bytes memory path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
+    function quoteExactInput(bytes calldata path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
         public
         override
         returns (uint256 amountOut, uint256 gasEstimate)
@@ -145,22 +145,22 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
         // This is equivalent of https://github.com/Uniswap/v4-periphery/blob/main/src/lens/Quoter.sol#L66,
         // where caller has to pass each pool's hookData, even if it's 0x, empty.
         uint256 numPools = param.nonEncodableData.length;
-        uint8 poolVersion = path.decodePoolVersion();
+        uint8 protocolVersion = path.decodeProtocolVersion();
         for (uint256 i = 0; i < numPools; i++) {
             // move on to the next pool
             if (i != 0) {
-                path = path.skipToken(poolVersion);
-                poolVersion = path.decodePoolVersion();
+                path = path.skipToken(protocolVersion);
+                protocolVersion = path.decodeProtocolVersion();
             }
 
-            if (poolVersion == uint8(2)) {
+            if (protocolVersion == uint8(2)) {
                 (address tokenIn, address tokenOut) = path.decodeFirstV2Pool();
 
                 amountIn = quoteExactInputSingleV2(
                     QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn})
                 );
-            } else if (poolVersion == uint8(4)) {
-                bytes memory hookData = param.nonEncodableData[i].hookData;
+            } else if (protocolVersion == uint8(4)) {
+                bytes calldata hookData = param.nonEncodableData[i].hookData;
                 (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) =
                     path.decodeFirstV4Pool();
                 PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
@@ -176,7 +176,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                 );
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
-            } else if (poolVersion == uint8(3)) {
+            } else if (protocolVersion == uint8(3)) {
                 (address tokenIn, uint24 fee, address tokenOut) = path.decodeFirstV3Pool();
 
                 (uint256 _amountOut, uint256 _gasEstimate) = quoteExactInputSingleV3(
@@ -185,7 +185,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, Base
                 gasEstimate += _gasEstimate;
                 amountIn = _amountOut;
             } else {
-                revert InvalidPoolVersion(poolVersion);
+                revert InvalidProtocolVersion(protocolVersion);
             }
         }
         // the final amountOut is the amountIn for the "next step" that doesnt exist
