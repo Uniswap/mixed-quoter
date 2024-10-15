@@ -22,9 +22,16 @@ library Constants {
 
     /// @dev fee bit shift to recover the fee, applicable to v3 v4 LP fees
     /// left shift 4 bits, and then right shift 4 bits
-    /// for example, a v4 fee 100% is 1000000, or 010011110100001001000000
-    /// (010011110100001001000000 << 4) >> 4 = 000011110100001001000000
+    /// for example, a v3 fee 0.3% is 3000, or 101110111000
+    /// (101110111000 << 4) >> 4 = 000000000000101110111000
     uint8 internal constant FEE_SHIFT = 4;
+
+    /// @dev fee bitmask to recover the fee, applicable to v4 LP fees
+    /// for example, a v4 fee 100% is 1000000, or 000011110100001001000000
+    /// 000011110100001001000000 & 100011111111111111111111 = 000011110100001001000000
+    /// if v4 fee is dynamic, then it's 100000000000000000000000
+    /// 100000000000000000000000 & 100011111111111111111111 = 100000000000000000000000
+    uint24 internal constant V4_FEE_BITMASK = 0x8FFFFF; // 100011111111111111111111
 
     /// @dev The length of the bytes encoded address
     uint8 internal constant ADDR_SIZE = 20;

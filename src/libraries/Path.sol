@@ -61,7 +61,7 @@ library Path {
     {
         if (path.length < Constants.V4_POP_OFFSET) revert BytesLib.SliceOutOfBounds();
         tokenIn = path.toAddress(0);
-        fee = (path.toUint24(Constants.ADDR_SIZE) << Constants.FEE_SHIFT) >> Constants.FEE_SHIFT;
+        fee = path.toUint24(Constants.ADDR_SIZE) & Constants.V4_FEE_BITMASK;
         tickSpacing = path.toUint24(Constants.ADDR_SIZE + Constants.V4_FEE_SIZE);
         hooks = path.toAddress(Constants.ADDR_SIZE + Constants.V4_FEE_SIZE + Constants.TICK_SPACING_SIZE);
         tokenOut = path.toAddress(Constants.NEXT_V4_POOL_OFFSET);

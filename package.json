@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@uniswap/swap-router-contracts": "^1.3.0",
+    "@uniswap/v3-periphery": "^1.4.4",
     "hardhat": "^2.6.8"
   },
   "license": "GPL-2.0-or-later",
