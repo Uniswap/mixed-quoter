@@ -12,6 +12,7 @@ import {V4Quoter} from "v4-periphery/src/lens/V4Quoter.sol";
 import {PathKey} from "@uniswap/v4-periphery/src/libraries/PathKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {DAITest} from "universal-router/lib/permit2/test/integration/tokens/DAI.t.sol";
 
 contract MixedRouteQuoterV2TestOnSepolia is Test {
     IQuoterV2 public v3QuoterV2;
@@ -140,6 +141,14 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
 
         assertGt(gasEstimate, 0);
 
+        // 0xda10009cbd5d07dd0cecc66161fc93d7c9000da18000004200000000000000000000000000000000000006000bb86985884c4392d348587b19cb9eaaf157f13271cd
+        // 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1 DAI
+        // 4200000000000000000000000000000000000006 WETH
+        // 6985884C4392D348587B19cb9eAAf157F13271cd ZRO
+        // DAI -- 0.3% [0x03aF20bDAaFfB4cC0A521796a223f7D85e2aAc31]WETH -- 1% [0x7505159f644DdC5eaE21C119E328d0D5Bee574b0]ZRO
+        // DAI -- [0xaBA4C3652F212e8006E52Fbd5547a12B86390003]WETH -- 1% [0x7505159f644DdC5eaE21C119E328d0D5Bee574b0]ZRO
+        // DAI -- [0xaBA4C3652F212e8006E52Fbd5547a12B86390003]WETH -- 0.3% [0x87dDDD2E152bf1955e7E03D9f23a9Dcc163EEbF6]ZRO
+        // DAI -- 0.3% [0x03aF20bDAaFfB4cC0A521796a223f7D85e2aAc31]WETH -- 0.3% [0x87dDDD2E152bf1955e7E03D9f23a9Dcc163EEbF6]ZRO
         PathKey[] memory exactInPathKey = new PathKey[](1);
         exactInPathKey[0] = PathKey({
             intermediateCurrency: Currency.wrap(SEPOLIA_USDC_ADDRESS),
