@@ -131,14 +131,12 @@ interface IMixedSplitRouteQuoterV2 {
     ///           route[1] = SplitNode(poolC, amountIn=0,    outputs=[])   // receives 40% of A's output → final
     ///           route[2] = SplitNode(poolB, amountIn=0,    outputs=[])   // receives 60% of A's output → final
     ///           amountsOut = [A_output, C_output, B_output]
-    ///           amountOut  = C_output + B_output
     ///
     /// @param route Flat array of SplitNode entries; targetIndex in each SplitOutputTarget must be
     ///              strictly greater than the node's own index, or InvalidSplitTarget is thrown.
-    /// @return amountOut Sum of all node outputs that were not forwarded to a downstream node.
     /// @return amountsOut Per-node output amounts in route order; amountsOut[i] is the output of route[i].
     /// @return gasEstimate Cumulative gas estimate across all V3 and V4 swaps.
     function quoteExactInputSplit(SplitNode[] calldata route)
         external
-        returns (uint256 amountOut, uint256[] memory amountsOut, uint256 gasEstimate);
+        returns (uint256[] memory amountsOut, uint256 gasEstimate);
 }

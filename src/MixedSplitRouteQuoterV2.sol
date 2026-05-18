@@ -210,7 +210,7 @@ contract MixedSplitRouteQuoterV2 is IUniswapV3SwapCallback, IMixedSplitRouteQuot
     function quoteExactInputSplit(SplitNode[] calldata route)
         public
         override
-        returns (uint256 amountOut, uint256[] memory amountsOut, uint256 gasEstimate)
+        returns (uint256[] memory amountsOut, uint256 gasEstimate)
     {
         uint256 n = route.length;
         amountsOut = new uint256[](n);
@@ -284,9 +284,6 @@ contract MixedSplitRouteQuoterV2 is IUniswapV3SwapCallback, IMixedSplitRouteQuot
                 pendingAmounts[targets[j].targetIndex] += allocated;
                 totalAllocated += allocated;
             }
-
-            // Any output not forwarded downstream goes to the final accumulator
-            amountOut += nodeOutput - totalAllocated;
         }
     }
 
