@@ -17,11 +17,11 @@ import {Locker} from "@uniswap/v4-periphery/src/libraries/Locker.sol";
 import {IMsgSender} from "@uniswap/v4-periphery/src/interfaces/IMsgSender.sol";
 
 import {V3CallbackValidation} from "./libraries/V3CallbackValidation.sol";
-import {IMixedRouteQuoterV2} from "./interfaces/IMixedRouteQuoterV2.sol";
+import {IMixedSplitRouteQuoterV2} from "./interfaces/IMixedSplitRouteQuoterV2.sol";
 import {V3PoolAddress} from "./libraries/V3PoolAddress.sol";
 import {Path} from "./libraries/Path.sol";
 
-contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsgSender, BaseV4Quoter {
+contract MixedSplitRouteQuoterV2 is IUniswapV3SwapCallback, IMixedSplitRouteQuoterV2, IMsgSender, BaseV4Quoter {
     using Path for bytes;
     using SafeCast for uint256;
     using QuoterRevert for *;
@@ -71,7 +71,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsg
         }
     }
 
-    /// @inheritdoc IMixedRouteQuoterV2
+    /// @inheritdoc IMixedSplitRouteQuoterV2
     function quoteExactInputSingleV3(QuoteExactInputSingleV3Params memory params)
         public
         override
@@ -95,7 +95,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsg
 
     /// V4 FUNCTIONS
 
-    /// @inheritdoc IMixedRouteQuoterV2
+    /// @inheritdoc IMixedSplitRouteQuoterV2
     function quoteExactInputSingleV4(QuoteExactInputSingleV4Params memory params)
         public
         setMsgSender
@@ -125,7 +125,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsg
 
     /// V2 FUNCTIONS
 
-    /// @inheritdoc IMixedRouteQuoterV2
+    /// @inheritdoc IMixedSplitRouteQuoterV2
     function quoteExactInputSingleV2(QuoteExactInputSingleV2Params memory params)
         public
         view
@@ -139,6 +139,7 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsg
 
     /// COMBINED ENTRYPOINT
 
+    /// @inheritdoc IMixedSplitRouteQuoterV2
     /// @dev Get the quote for an exactIn swap between an array of V2 and/or V3 pools
     /// @notice To encode a V2 pair within the path, use 0x800000 (hex value of 8388608) for the fee between the two token addresses
     function quoteExactInput(bytes calldata path, ExtraQuoteExactInputParams calldata param, uint256 amountIn)
@@ -203,6 +204,90 @@ contract MixedRouteQuoterV2 is IUniswapV3SwapCallback, IMixedRouteQuoterV2, IMsg
         }
         // the final amountOut is the amountIn for the "next step" that doesnt exist
         amountOut = amountIn;
+    }
+
+    /// @inheritdoc IMixedSplitRouteQuoterV2
+    function quoteExactInputSplit(SplitNode[] calldata route)
+        public
+        override
+        returns (uint256 amountOut, uint256[] memory amountsOut, uint256 gasEstimate)
+    {
+        uint256 n = route.length;
+        amountsOut = new uint256[](n);
+        // Accumulates amounts forwarded to each node by upstream nodes
+        uint256[] memory pendingAmounts = new uint256[](n);
+
+        for (uint256 i = 0; i < n; i++) {
+            SplitNode calldata node = route[i];
+            uint256 nodeInput = node.amountIn + pendingAmounts[i];
+
+            // Skip nodes that received no input; their amountsOut entry stays 0
+            if (nodeInput == 0) continue;
+
+            // Quote this single pool hop
+            uint8 protocolVersion = node.path.decodeProtocolVersion();
+            uint256 nodeOutput;
+
+            if (protocolVersion == uint8(2)) {
+                (address tokenIn, address tokenOut) = node.path.decodeFirstV2Pool();
+                nodeOutput = quoteExactInputSingleV2(
+                    QuoteExactInputSingleV2Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: nodeInput})
+                );
+            } else if (protocolVersion == uint8(4)) {
+                (address tokenIn, uint24 fee, uint24 tickSpacing, address hooks, address tokenOut) =
+                    node.path.decodeFirstV4Pool();
+                PoolKey memory poolKey = Path.v4PoolToPoolKey(tokenIn, fee, tickSpacing, hooks, tokenOut);
+                (uint256 legOut, uint256 legGas) = quoteExactInputSingleV4(
+                    QuoteExactInputSingleV4Params({
+                        poolKey: poolKey,
+                        zeroForOne: tokenIn < tokenOut,
+                        exactAmount: nodeInput,
+                        hookData: node.hookData
+                    })
+                );
+                nodeOutput = legOut;
+                gasEstimate += legGas;
+            } else if (protocolVersion == uint8(3)) {
+                (address tokenIn, uint24 fee, address tokenOut) = node.path.decodeFirstV3Pool();
+                (uint256 legOut, uint256 legGas) = quoteExactInputSingleV3(
+                    QuoteExactInputSingleV3Params({tokenIn: tokenIn, tokenOut: tokenOut, amountIn: nodeInput, fee: fee})
+                );
+                nodeOutput = legOut;
+                gasEstimate += legGas;
+            } else if (protocolVersion == uint8(0)) {
+                // wrap/unwrap: no price impact, pass through
+                gasEstimate += 20_000;
+                nodeOutput = nodeInput;
+            } else {
+                revert InvalidProtocolVersion(protocolVersion);
+            }
+
+            amountsOut[i] = nodeOutput;
+
+            // Distribute output to downstream nodes
+            SplitOutputTarget[] calldata targets = node.outputs;
+            uint256 totalBps = 0;
+            uint256 totalAllocated = 0;
+
+            for (uint256 j = 0; j < targets.length; j++) {
+                if (targets[j].targetIndex <= i) revert InvalidSplitTarget();
+                totalBps += targets[j].bps;
+                if (totalBps > 10_000) revert InvalidSplitBPS();
+
+                uint256 allocated;
+                if (j == targets.length - 1 && totalBps == 10_000) {
+                    // Last target at 100% total: give it the exact remainder to absorb rounding dust
+                    allocated = nodeOutput - totalAllocated;
+                } else {
+                    allocated = nodeOutput * targets[j].bps / 10_000;
+                }
+                pendingAmounts[targets[j].targetIndex] += allocated;
+                totalAllocated += allocated;
+            }
+
+            // Any output not forwarded downstream goes to the final accumulator
+            amountOut += nodeOutput - totalAllocated;
+        }
     }
 
     /// @inheritdoc IMsgSender

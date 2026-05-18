@@ -6,16 +6,16 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IV4Quoter} from "@uniswap/v4-periphery/src/interfaces/IV4Quoter.sol";
 import {IQuoterV2} from "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 
-import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
-import {MixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
+import {IMixedSplitRouteQuoterV2} from "../src/interfaces/IMixedSplitRouteQuoterV2.sol";
+import {MixedSplitRouteQuoterV2} from "../src/MixedSplitRouteQuoterV2.sol";
 import {V4Quoter} from "v4-periphery/src/lens/V4Quoter.sol";
 import {PathKey} from "@uniswap/v4-periphery/src/libraries/PathKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 
-contract MixedRouteQuoterV2TestOnSepolia is Test {
+contract MixedSplitRouteQuoterV2TestOnSepolia is Test {
     IQuoterV2 public v3QuoterV2;
-    IMixedRouteQuoterV2 public mixedRouteQuoterV2;
+    IMixedSplitRouteQuoterV2 public mixedSplitRouteQuoterV2;
     IV4Quoter public quoter;
     IPoolManager public poolManager;
 
@@ -34,7 +34,8 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
         poolManager = IPoolManager(uniswapV4PoolManager);
-        mixedRouteQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
+        mixedSplitRouteQuoterV2 =
+            new MixedSplitRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
         v3QuoterV2 = IQuoterV2(v3QuoterV2Address);
         quoter = new V4Quoter(poolManager);
     }
@@ -48,17 +49,18 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint24 tickSpacing = 60;
         address hooks = address(0);
         bytes memory hookData = "0x";
-        IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](1);
-        nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: hookData}));
+        IMixedSplitRouteQuoterV2.NonEncodableData[] memory nonEncodableData =
+            new IMixedSplitRouteQuoterV2.NonEncodableData[](1);
+        nonEncodableData[0] = (IMixedSplitRouteQuoterV2.NonEncodableData({hookData: hookData}));
 
-        // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
-            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
+        IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 protocolVersion = uint8(4);
         uint24 encodedFee = (uint24(protocolVersion) << v4FeeShift) + fee;
         bytes memory path = abi.encodePacked(SEPOLIA_WETH_ADDRESS, encodedFee, tickSpacing, hooks, SEPOLIA_USDC_ADDRESS);
 
-        (uint256 amountOut, uint256 gasEstimate) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        (uint256 amountOut, uint256 gasEstimate) =
+            mixedSplitRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
@@ -114,13 +116,13 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
         uint24 tickSpacing = 60;
         address hooks = address(0);
         bytes memory hookData = "0x";
-        IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);
-        nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: hookData}));
-        nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: hookData}));
+        IMixedSplitRouteQuoterV2.NonEncodableData[] memory nonEncodableData =
+            new IMixedSplitRouteQuoterV2.NonEncodableData[](2);
+        nonEncodableData[0] = (IMixedSplitRouteQuoterV2.NonEncodableData({hookData: hookData}));
+        nonEncodableData[1] = (IMixedSplitRouteQuoterV2.NonEncodableData({hookData: hookData}));
 
-        // bytes memory path = abi.encodePacked(V4_SEPOLIA_OP_ADDRESS, fee,tickSpacing, hooks, V4_SEPOLIA_USDC_ADDRESS);
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
-            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
+        IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
         uint8 protocolVersion = uint8(4);
         uint24 encodedFee = (uint24(protocolVersion) << v4FeeShift) + fee;
         uint8 v3ProtocolVersion = uint8(3);
@@ -136,7 +138,8 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
             SEPOLIA_UNI_ADDRESS
         );
 
-        (uint256 amountOut, uint256 gasEstimate) = mixedRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
+        (uint256 amountOut, uint256 gasEstimate) =
+            mixedSplitRouteQuoterV2.quoteExactInput(path, extraParams, amountIn);
 
         assertGt(gasEstimate, 0);
 
