@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {MixedRouteQuoterV2, IMixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
+import {MixedSplitRouteQuoterV2, IMixedSplitRouteQuoterV2} from "../src/MixedSplitRouteQuoterV2.sol";
 import {MockMsgSenderHook} from "@uniswap/v4-periphery/test/mocks/MockMsgSenderHook.sol";
 
 // v4-core
@@ -31,7 +31,7 @@ contract QuoterTest is Test, Deployers {
     // Max tick for full range with tick spacing of 60
     int24 internal constant MAX_TICK = -MIN_TICK;
 
-    MixedRouteQuoterV2 quoter;
+    MixedSplitRouteQuoterV2 quoter;
 
     MockERC20 token0;
     MockERC20 token1;
@@ -43,7 +43,7 @@ contract QuoterTest is Test, Deployers {
 
     function setUp() public {
         deployFreshManagerAndRouters();
-        quoter = new MixedRouteQuoterV2(manager, address(0), address(0));
+        quoter = new MixedSplitRouteQuoterV2(manager, address(0), address(0));
 
         // salts are chosen so that address(token0) < address(token1) && address(token1) < address(token2)
         token0 = new MockERC20("Test0", "0", 18);
@@ -69,7 +69,7 @@ contract QuoterTest is Test, Deployers {
     }
 
     function test_fuzz_mixedQuoter_msgSender(address pranker, bool zeroForOne) public {
-        IMixedRouteQuoterV2.QuoteExactInputSingleV4Params memory params = IMixedRouteQuoterV2
+        IMixedSplitRouteQuoterV2.QuoteExactInputSingleV4Params memory params = IMixedSplitRouteQuoterV2
             .QuoteExactInputSingleV4Params({
             poolKey: key01Hook,
             zeroForOne: zeroForOne,

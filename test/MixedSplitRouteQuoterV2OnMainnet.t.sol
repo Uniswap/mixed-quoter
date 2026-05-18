@@ -3,14 +3,14 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {IMixedRouteQuoterV1} from "@uniswap/swap-router-contracts/contracts/interfaces/IMixedRouteQuoterV1.sol";
-import {IMixedRouteQuoterV2} from "../src/interfaces/IMixedRouteQuoterV2.sol";
+import {IMixedSplitRouteQuoterV2} from "../src/interfaces/IMixedSplitRouteQuoterV2.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
-import {MixedRouteQuoterV2} from "../src/MixedRouteQuoterV2.sol";
+import {MixedSplitRouteQuoterV2} from "../src/MixedSplitRouteQuoterV2.sol";
 import {Constants} from "../src/libraries/Constants.sol";
 
-contract MixedRouteQuoterV2TestOnMainnet is Test {
+contract MixedSplitRouteQuoterV2TestOnMainnet is Test {
     IMixedRouteQuoterV1 public mixedRouteQuoterV1;
-    IMixedRouteQuoterV2 public mixedRouteQuoterV2;
+    IMixedSplitRouteQuoterV2 public mixedSplitRouteQuoterV2;
     IPoolManager public poolManager;
     address public immutable uniswapV4PoolManager = address(0); // uniswap v4 pool manager is not deployed on mainnet as of now (Sept 6 2024)
     address public immutable uniswapV3PoolFactory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -27,7 +27,7 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
         poolManager = IPoolManager(uniswapV4PoolManager);
         mixedRouteQuoterV1 = IMixedRouteQuoterV1(0x84E44095eeBfEC7793Cd7d5b57B7e401D7f1cA2E); // We use deployed address of MixedRouteQuoterV1 on mainnet for testing
-        mixedRouteQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
+        mixedSplitRouteQuoterV2 = new MixedSplitRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
     }
 
     function test_FuzzQuoteExactInput_MultiTokenPath_IncludeFOT(uint256 amountIn) public {
@@ -49,19 +49,20 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         uint8 v3FeeShift = 20;
         uint24 WTAO_WETH_encodedV3Fee = (uint24(v3ProtocolVersion) << v3FeeShift) + WTAO_WETH_v3Fee;
         uint8 WETH_OPSEC_encodedV2Fee = uint8(2) << 4;
-        bytes memory mixedRouteQuoterV2Path =
+        bytes memory mixedSplitRouteQuoterV2Path =
             abi.encodePacked(WTAO, WTAO_WETH_encodedV3Fee, WETH, WETH_OPSEC_encodedV2Fee, OPSEC);
 
-        IMixedRouteQuoterV2.NonEncodableData[] memory nonEncodableData = new IMixedRouteQuoterV2.NonEncodableData[](2);
-        nonEncodableData[0] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
-        nonEncodableData[1] = (IMixedRouteQuoterV2.NonEncodableData({hookData: "0x"}));
-        IMixedRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
-            IMixedRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
+        IMixedSplitRouteQuoterV2.NonEncodableData[] memory nonEncodableData =
+            new IMixedSplitRouteQuoterV2.NonEncodableData[](2);
+        nonEncodableData[0] = (IMixedSplitRouteQuoterV2.NonEncodableData({hookData: "0x"}));
+        nonEncodableData[1] = (IMixedSplitRouteQuoterV2.NonEncodableData({hookData: "0x"}));
+        IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams memory extraParams =
+            IMixedSplitRouteQuoterV2.ExtraQuoteExactInputParams({nonEncodableData: nonEncodableData});
 
-        uint256 gasBeforeQuoteMixedQuoterV2 = gasleft();
+        uint256 gasBeforeQuoteMixedSplitRouteQuoterV2 = gasleft();
         (uint256 amountOutV2, uint256 swapGasEstimateV2) =
-            mixedRouteQuoterV2.quoteExactInput(mixedRouteQuoterV2Path, extraParams, amountIn);
-        uint256 gasAfterQuoteMixedQuoterV2 = gasleft();
+            mixedSplitRouteQuoterV2.quoteExactInput(mixedSplitRouteQuoterV2Path, extraParams, amountIn);
+        uint256 gasAfterQuoteMixedSplitRouteQuoterV2 = gasleft();
 
         assertEqUint(amountOut, amountOutV2);
 
@@ -69,7 +70,7 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
         // Overall gas cost of mixed quoter v2 should always be less than mixed quoter v1
         assertLt(swapGasEstimateV2, v3SwapGasEstimate);
         assertLt(
-            gasBeforeQuoteMixedQuoterV2 - gasAfterQuoteMixedQuoterV2,
+            gasBeforeQuoteMixedSplitRouteQuoterV2 - gasAfterQuoteMixedSplitRouteQuoterV2,
             gasBeforeQuoteMixedQuoterV1 - gasAfterQuoteMixedQuoterV1
         );
     }
