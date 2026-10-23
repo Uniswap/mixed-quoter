@@ -23,6 +23,8 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
     address public immutable uniswapV3PoolFactory = 0x0227628f3F023bb0B980b67D528571c95c6DaC1c;
     address public immutable uniswapV2PoolFactory = 0xB7f907f7A9eBC822a80BD25E224be42Ce0A698A0;
     address public immutable v3QuoterV2Address = 0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3;
+    // Fixed fork block (2025-05-05) so that pool state does not change between runs
+    uint256 public constant FORK_BLOCK = 8262794;
 
     address V4_NATIVE_ADDRESS = address(0);
     address SEPOLIA_WETH_ADDRESS = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
@@ -32,7 +34,7 @@ contract MixedRouteQuoterV2TestOnSepolia is Test {
     uint8 public v4FeeShift = 20;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
+        vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"), FORK_BLOCK);
         poolManager = IPoolManager(uniswapV4PoolManager);
         mixedRouteQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
         v3QuoterV2 = IQuoterV2(v3QuoterV2Address);
