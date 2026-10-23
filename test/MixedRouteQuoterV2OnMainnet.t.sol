@@ -15,6 +15,8 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
     address public immutable uniswapV4PoolManager = address(0); // uniswap v4 pool manager is not deployed on mainnet as of now (Sept 6 2024)
     address public immutable uniswapV3PoolFactory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address public immutable uniswapV2PoolFactory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    // Fixed fork block (2025-05-05) so that pool state does not change between runs
+    uint256 public constant FORK_BLOCK = 22419413;
 
     address WTAO = 0x77E06c9eCCf2E797fd462A92B6D7642EF85b0A44;
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -24,7 +26,7 @@ contract MixedRouteQuoterV2TestOnMainnet is Test {
     uint24 private constant flagBitmask = 8388608;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), FORK_BLOCK);
         poolManager = IPoolManager(uniswapV4PoolManager);
         mixedRouteQuoterV1 = IMixedRouteQuoterV1(0x84E44095eeBfEC7793Cd7d5b57B7e401D7f1cA2E); // We use deployed address of MixedRouteQuoterV1 on mainnet for testing
         mixedRouteQuoterV2 = new MixedRouteQuoterV2(poolManager, uniswapV3PoolFactory, uniswapV2PoolFactory);
